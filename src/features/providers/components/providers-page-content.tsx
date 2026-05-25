@@ -1,0 +1,162 @@
+"use client";
+
+import { useState } from "react";
+import { Pencil, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { useCanWriteAdmin } from "@/providers/auth-provider";
+import { ProviderFormDialog } from "@/features/providers/components/provider-form-dialog";
+import { useProviderMutations, useProviders } from "@/features/providers/hooks/use-providers";
+import {
+  hasProviderDefaults,
+  type ProviderFormValues,
+  type ProviderRecord,
+} from "@/features/providers/schemas/provider.schema";
+
+export function ProvidersPageContent() {
+  const canWrite = useCanWriteAdmin();
+  const { data, isLoading, error } = useProviders();
+  const { create, update, toggleActive } = useProviderMutations();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<ProviderRecord | null>(null);
+  const [readOnly, setReadOnly] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const openCreate = () => {
+    setEditing(null);
+    setReadOnly(false);
+    setFormError(null);
+    setDialogOpen(true);
+  };
+
+  const openEdit = (row: ProviderRecord) => {
+    setEditing(row);
+    setReadOnly(!canWrite);
+    setFormError(null);
+    setDialogOpen(true);
+  };
+
+  const handleSubmit = async (values: ProviderFormValues) => {
+    setFormError(null);
+    try {
+      if (editing) {
+        await update.mutateAsync({ id: editing.id, values });
+      } else {
+        await create.mutateAsync(values);
+      }
+      setDialogOpen(false);
+    } catch (e) {
+      setFormError(e instanceof Error ? e.message : "No se pudo guardar");
+    }
+  };
+
+  return (
+    <div className="p-6">
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <div>
+          <p className="text-sm text-muted-foreground">
+            Catálogo maestro de proveedores, mineros y comuneros. Fuente de referencia para la app móvil.
+          </p>
+        </div>
+        {canWrite ? (
+          <Button onClick={openCreate}>
+            <Plus className="h-4 w-4" />
+            Nuevo proveedor
+          </Button>
+        ) : null}
+      </div>
+
+      {formError ? <p className="mb-3 text-sm text-destructive">{formError}</p> : null}
+
+      {isLoading ? (
+        <p className="text-sm text-muted-foreground">Cargando proveedores…</p>
+      ) : error ? (
+        <p className="text-sm text-destructive">
+          {error instanceof Error ? error.message : "Error al cargar proveedores"}
+        </p>
+      ) : (
+        <div className="rounded-lg border bg-card">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Orden</TableHead>
+                <TableHead>Nombre</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead>Defaults</TableHead>
+                <TableHead>Observaciones</TableHead>
+                <TableHead className="text-right">Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {(data ?? []).length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                    No hay proveedores registrados. {canWrite ? "Cree el primero." : ""}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                (data ?? []).map((row) => (
+                  <TableRow key={row.id}>
+                    <TableCell>{row.sortOrder ?? 0}</TableCell>
+                    <TableCell className="font-medium">{row.name}</TableCell>
+                    <TableCell>
+                      {row.isActive ? (
+                        <Badge className="border-emerald-200 bg-emerald-50 text-emerald-800">Activo</Badge>
+                      ) : (
+                        <Badge className="border-slate-200 bg-slate-50 text-slate-600">Inactivo</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {hasProviderDefaults(row.defaults) ? (
+                        <Badge className="border-sky-200 bg-sky-50 text-sky-800">Configurados</Badge>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="max-w-[240px] truncate text-muted-foreground">
+                      {row.notes ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => openEdit(row)}>
+                          <Pencil className="h-4 w-4" />
+                          {canWrite ? "Editar" : "Ver"}
+                        </Button>
+                        {canWrite ? (
+                          <Switch
+                            checked={Boolean(row.isActive)}
+                            onCheckedChange={(v) =>
+                              void toggleActive.mutateAsync({ id: row.id, isActive: v })
+                            }
+                          />
+                        ) : null}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      <ProviderFormDialog
+        open={dialogOpen}
+        initial={editing}
+        readOnly={readOnly}
+        saving={create.isPending || update.isPending}
+        onClose={() => setDialogOpen(false)}
+        onSubmit={(values) => void handleSubmit(values)}
+      />
+    </div>
+  );
+}

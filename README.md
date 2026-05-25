@@ -1,36 +1,54 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Valorización Minera — Web Admin
 
-## Getting Started
+Panel de administración (oficina) para el ecosistema de valorización minera. Complementa la app móvil offline; no reemplaza el motor de cálculo en campo.
 
-First, run the development server:
+## Stack
+
+- Next.js 15 (App Router) + TypeScript
+- AWS Amplify Gen 2 (Cognito + AppSync)
+- Tailwind CSS + componentes estilo shadcn/ui
+- React Hook Form + Zod
+- TanStack Query
+
+## Inicio rápido
 
 ```bash
+npm install
+npm run sandbox   # genera amplify_outputs.json (Cognito + AppSync)
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abrir [http://localhost:3000](http://localhost:3000) → redirige a `/admin/dashboard`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Roles web (MVP)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Rol | Acceso |
+|-----|--------|
+| **admin** | CRUD maestros (maquila, etc.) |
+| **supervisor** | Lectura + exportación futura |
+| **operador** | Solo app móvil |
 
-## Learn More
+Asigne usuarios staff desde **Usuarios** en el panel (crea en Cognito + `UserProfile`) o manualmente en consola AWS.
 
-To learn more about Next.js, take a look at the following resources:
+## Módulos
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Ruta | Estado |
+|------|--------|
+| `/admin/dashboard` | Activo |
+| `/admin/maquila` | Activo (vertical slice) |
+| `/admin/configuracion` | Activo — defaults comerciales (singleton `AppSettings`) |
+| `/admin/materiales` | Activo — catálogo tipos MAT (`MaterialType`) |
+| `/admin/proveedores` | Activo — catálogo proveedores + defaults (`Provider`, `ProviderDefaults`) |
+| `/admin/usuarios` | Activo — usuarios staff (`UserProfile` + Cognito vía Lambda) |
+| `/admin/valorizaciones` | Activo — consulta valorizaciones (`Valuation`, solo lectura) |
+| Auditoría | Próximamente (nav preparada) |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Relación con app móvil
 
-## Deploy on Vercel
+- **Web:** fuente maestra de `maquila_ranges`, defaults, MAT, proveedores (fases siguientes).
+- **Móvil:** cotización offline, PDF, historial local.
+- **Sync:** preparado en esquema (`syncStatus` en `Valuation`); no implementado en esta fase.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Deploy
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`amplify.yml` — backend `ampx pipeline-deploy` + build Next.js.
