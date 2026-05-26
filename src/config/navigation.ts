@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { ClipboardList, Factory, LayoutDashboard, Package, Settings, Truck, Users } from "lucide-react";
+import { ClipboardList, Factory, Package, Settings, Truck, Users } from "lucide-react";
 
 export type NavItemStatus = "active" | "coming_soon";
 
@@ -11,8 +11,10 @@ export interface AdminNavItem {
   adminOnly?: boolean;
 }
 
+/** Ruta inicial del panel (dashboard oculto por ahora). */
+export const defaultAdminRoute = "/admin/maquila";
+
 export const adminNavigation: AdminNavItem[] = [
-  { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard, status: "active" },
   { href: "/admin/maquila", label: "Rangos maquila", icon: Factory, status: "active" },
   { href: "/admin/configuracion", label: "Defaults comerciales", icon: Settings, status: "active" },
   { href: "/admin/materiales", label: "Tipos MAT", icon: Package, status: "active" },

@@ -1,7 +1,7 @@
-"use client";
+import { redirect } from "next/navigation";
+import { defaultAdminRoute } from "@/config/navigation";
 
-import { DashboardPageContent } from "@/features/dashboard/components/dashboard-page-content";
-
+/** Dashboard deshabilitado temporalmente; redirige al módulo inicial. */
 export default function DashboardPage() {
-  return <DashboardPageContent />;
+  redirect(defaultAdminRoute);
 }
