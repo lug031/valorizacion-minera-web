@@ -48,7 +48,7 @@ function userPoolId(): string {
 }
 
 function profileTableName(): string {
-  const name = env.AMPLIFY_DATA_USERPROFILE_TABLE_NAME;
+  const name = env.USERPROFILE_TABLE_NAME;
   if (!name) throw new Error("Tabla UserProfile no configurada");
   return name;
 }

@@ -12,3 +12,8 @@ const backend = defineBackend({
 backend.data.resources.tables.UserProfile.grantReadWriteData(
   backend.staffUsers.resources.lambda
 );
+
+backend.staffUsers.addEnvironment(
+  "USERPROFILE_TABLE_NAME",
+  backend.data.resources.tables.UserProfile.tableName
+);
