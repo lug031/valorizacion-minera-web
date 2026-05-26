@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { AppSyncResolverHandler } from "aws-lambda";
 import type { Schema } from "../../data/resource";
 import { env } from "$amplify/env/staff-users";
 import {
@@ -23,9 +24,18 @@ import {
   UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
 
-type Handler = Schema["listStaffUsers"]["functionHandler"];
 type StaffRole = "admin" | "supervisor";
 type StaffUser = Schema["StaffUser"]["type"];
+
+type StaffHandlerEvent = {
+  info: { fieldName: string };
+  arguments: Record<string, unknown>;
+  identity?: {
+    sub?: string;
+    username?: string;
+    claims?: Record<string, unknown>;
+  };
+};
 
 const STAFF_GROUPS: StaffRole[] = ["admin", "supervisor"];
 const cognito = new CognitoIdentityProviderClient();
@@ -48,13 +58,11 @@ function normalizeEmail(email: string): string {
 }
 
 function attr(user: UserType | undefined, name: string): string | undefined {
-  return user?.Attributes?.find((a) => a.Name === name)?.Value;
+  return user?.Attributes?.find((a: AttributeType) => a.Name === name)?.Value;
 }
 
-function callerSub(event: Parameters<Handler>[0]): string | undefined {
-  const identity = event.identity as
-    | { sub?: string; username?: string; claims?: Record<string, unknown> }
-    | undefined;
+function callerSub(event: StaffHandlerEvent): string | undefined {
+  const identity = event.identity;
   if (!identity) return undefined;
   if (typeof identity.sub === "string") return identity.sub;
   const claimSub = identity.claims?.sub;
@@ -128,19 +136,6 @@ async function getProfileById(id: string) {
   return profile;
 }
 
-async function resolveRole(username: string): Promise<StaffRole | null> {
-  const res = await cognito.send(
-    new AdminListGroupsForUserCommand({
-      UserPoolId: userPoolId(),
-      Username: username,
-    })
-  );
-  const names = (res.Groups ?? []).map((g) => g.GroupName).filter(Boolean) as string[];
-  if (names.includes("admin")) return "admin";
-  if (names.includes("supervisor")) return "supervisor";
-  return null;
-}
-
 function mapAccessStatus(enabled: boolean, userStatus?: string, profileActive?: boolean): string {
   if (!enabled || profileActive === false) return "inactivo";
   if (userStatus === "FORCE_CHANGE_PASSWORD") return "pendiente";
@@ -192,12 +187,13 @@ async function setUserGroup(username: string, role: StaffRole): Promise<void> {
     })
   );
   for (const group of current.Groups ?? []) {
-    if (group.GroupName && STAFF_GROUPS.includes(group.GroupName as StaffRole)) {
+    const groupName = group.GroupName;
+    if (groupName && STAFF_GROUPS.includes(groupName as StaffRole)) {
       await cognito.send(
         new AdminRemoveUserFromGroupCommand({
           UserPoolId: userPoolId(),
           Username: username,
-          GroupName: group.GroupName,
+          GroupName: groupName,
         })
       );
     }
@@ -224,22 +220,28 @@ async function handleList(): Promise<StaffUser[]> {
     return toStaffUser(p, cognitoUser);
   });
 
-  merged.sort((a, b) => (a.displayName ?? a.email ?? "").localeCompare(b.displayName ?? b.email ?? "", "es"));
+  merged.sort((a, b) =>
+    (a.displayName ?? a.email ?? "").localeCompare(b.displayName ?? b.email ?? "", "es")
+  );
   return merged;
 }
 
-async function handleCreate(
-  event: Parameters<Handler>[0]
-): Promise<StaffUser> {
-  const email = normalizeEmail(event.arguments.email as string);
-  const displayName = (event.arguments.displayName as string).trim();
-  const role = event.arguments.role as StaffRole;
-  const notes = (event.arguments.notes as string | undefined)?.trim() || null;
+async function handleCreate(event: StaffHandlerEvent): Promise<StaffUser> {
+  const args = event.arguments;
+  const email = normalizeEmail(String(args.email ?? ""));
+  const displayName = String(args.displayName ?? "").trim();
+  const role = args.role as StaffRole;
+  const notes = typeof args.notes === "string" ? args.notes.trim() || null : null;
   const tempPassword =
-    (event.arguments.temporaryPassword as string | undefined)?.trim() || generateTempPassword();
+    (typeof args.temporaryPassword === "string" ? args.temporaryPassword.trim() : "") ||
+    generateTempPassword();
 
   const profiles = await scanProfiles();
-  if (profiles.some((p) => normalizeEmail(p.username) === email || normalizeEmail(p.email ?? "") === email)) {
+  if (
+    profiles.some(
+      (p) => normalizeEmail(p.username) === email || normalizeEmail(p.email ?? "") === email
+    )
+  ) {
     throw new Error(`Ya existe un usuario con el correo "${email}"`);
   }
 
@@ -289,12 +291,13 @@ async function handleCreate(
   return toStaffUser(profile, created.User, role, tempPassword);
 }
 
-async function handleUpdate(event: Parameters<Handler>[0]): Promise<StaffUser> {
-  const id = event.arguments.id as string;
-  const displayName = (event.arguments.displayName as string).trim();
-  const role = event.arguments.role as StaffRole;
-  const notes = (event.arguments.notes as string | undefined)?.trim() || null;
-  const isActive = event.arguments.isActive as boolean;
+async function handleUpdate(event: StaffHandlerEvent): Promise<StaffUser> {
+  const args = event.arguments;
+  const id = String(args.id ?? "");
+  const displayName = String(args.displayName ?? "").trim();
+  const role = args.role as StaffRole;
+  const notes = typeof args.notes === "string" ? args.notes.trim() || null : null;
+  const isActive = Boolean(args.isActive);
 
   const profile = await getProfileById(id);
   const sub = callerSub(event);
@@ -378,15 +381,19 @@ async function handleUpdate(event: Parameters<Handler>[0]): Promise<StaffUser> {
   );
 }
 
-export const handler: Handler = async (event) => {
-  const field = event.info?.fieldName;
+export const handler: AppSyncResolverHandler<
+  Record<string, unknown>,
+  StaffUser | StaffUser[] | null
+> = async (event) => {
+  const staffEvent = event as StaffHandlerEvent;
+  const field = staffEvent.info?.fieldName;
   switch (field) {
     case "listStaffUsers":
       return handleList();
     case "createStaffUser":
-      return handleCreate(event);
+      return handleCreate(staffEvent);
     case "updateStaffUser":
-      return handleUpdate(event);
+      return handleUpdate(staffEvent);
     default:
       throw new Error(`Operación no soportada: ${field}`);
   }
