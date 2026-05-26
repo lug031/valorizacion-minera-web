@@ -165,8 +165,8 @@ const schema = a.schema({
       createdByUserId: a.string(),
     })
     .authorization((allow) => [
-      allow.groups(["admin", "supervisor"]).to(["read"]),
-      allow.groups(["admin"]).to(["create", "update", "delete"]),
+      allow.groups(["supervisor"]).to(["read"]),
+      allow.groups(["admin"]).to(["create", "read", "update", "delete"]),
     ]),
 
   AuditLog: a
