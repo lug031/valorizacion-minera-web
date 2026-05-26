@@ -27,8 +27,11 @@ import {
 type StaffRole = "admin" | "supervisor";
 type StaffUser = Schema["StaffUser"]["type"];
 
+/** Amplify Gen 2 envía fieldName en la raíz del evento, no en event.info (ver amplify-backend#3120). */
 type StaffHandlerEvent = {
-  info: { fieldName: string };
+  fieldName?: string;
+  typeName?: string;
+  info?: { fieldName?: string };
   arguments: Record<string, unknown>;
   identity?: {
     sub?: string;
@@ -36,6 +39,14 @@ type StaffHandlerEvent = {
     claims?: Record<string, unknown>;
   };
 };
+
+function resolveFieldName(event: StaffHandlerEvent): string {
+  const field = event.fieldName ?? event.info?.fieldName;
+  if (!field) {
+    throw new Error("Operación no soportada: nombre de campo no disponible");
+  }
+  return field;
+}
 
 const STAFF_GROUPS: StaffRole[] = ["admin", "supervisor"];
 const cognito = new CognitoIdentityProviderClient();
@@ -386,7 +397,7 @@ export const handler: AppSyncResolverHandler<
   StaffUser | StaffUser[] | null
 > = async (event) => {
   const staffEvent = event as StaffHandlerEvent;
-  const field = staffEvent.info?.fieldName;
+  const field = resolveFieldName(staffEvent);
   switch (field) {
     case "listStaffUsers":
       return handleList();
