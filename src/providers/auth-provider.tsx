@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import {
+  confirmSignIn,
   fetchAuthSession,
   getCurrentUser,
   signIn,
@@ -30,7 +31,8 @@ interface AuthContextValue {
   role: StaffGroup | null;
   loading: boolean;
   staffAccess: "pending" | "allowed" | "denied";
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<"signed-in" | "new-password-required">;
+  completeNewPassword: (newPassword: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshSession: () => Promise<void>;
 }
@@ -85,7 +87,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(
     async (email: string, password: string) => {
-      await signIn({ username: email.trim(), password });
+      const result = await signIn({ username: email.trim(), password });
+      if (result.nextStep.signInStep === "CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED") {
+        return "new-password-required" as const;
+      }
+      await refreshSession();
+      return "signed-in" as const;
+    },
+    [refreshSession]
+  );
+
+  const completeNewPassword = useCallback(
+    async (newPassword: string) => {
+      await confirmSignIn({ challengeResponse: newPassword });
       await refreshSession();
     },
     [refreshSession]
@@ -106,10 +120,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       staffAccess: user ? staffAccess : "denied",
       login,
+      completeNewPassword,
       logout,
       refreshSession,
     }),
-    [user, groups, loading, staffAccess, login, logout, refreshSession]
+    [user, groups, loading, staffAccess, login, completeNewPassword, logout, refreshSession]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
