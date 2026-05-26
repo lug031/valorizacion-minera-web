@@ -4,9 +4,10 @@ export const staffUsers = defineFunction({
   name: "staff-users",
   entry: "./handler.ts",
   timeoutSeconds: 30,
-  /** Mismo stack que data: acceso DynamoDB + evita dependencias circulares. */
+  /** Resolver de AppSync: mismo stack que data (sin enlace en defineAuth). */
   resourceGroupName: "data",
   environment: {
+    AMPLIFY_AUTH_USERPOOL_ID: "",
     USERPROFILE_TABLE_NAME: "",
   },
 });
