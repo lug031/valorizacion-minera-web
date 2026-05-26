@@ -94,7 +94,7 @@ export function StaffUserFormDialog({
             {readOnly ? "Ver usuario" : isEditing ? "Editar usuario" : "Nuevo usuario"}
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Usuarios del panel web/admin (Cognito). La contraseña temporal solo se muestra al crear.
+            Usuarios con acceso al panel administrativo. La contraseña temporal solo se muestra al crear.
           </p>
         </div>
 
@@ -107,7 +107,7 @@ export function StaffUserFormDialog({
               <div className="space-y-2">
                 <Label>Correo</Label>
                 <Input value={initial?.email ?? initial?.username ?? ""} disabled />
-                <p className="text-xs text-muted-foreground">El correo no se modifica en este MVP.</p>
+                <p className="text-xs text-muted-foreground">El correo no se puede modificar después de crear el usuario.</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="displayName">Nombre visible</Label>

@@ -20,6 +20,17 @@ export const emptyValuationFilters: ValuationFilters = {
   syncStatus: "",
 };
 
+export function hasActiveValuationFilters(filters: ValuationFilters): boolean {
+  return Boolean(
+    filters.code?.trim() ||
+      filters.fechaFrom?.trim() ||
+      filters.fechaTo?.trim() ||
+      filters.materialTypeCode?.trim() ||
+      filters.providerName?.trim() ||
+      filters.syncStatus?.trim()
+  );
+}
+
 export interface ValuationRecord {
   id: string;
   code: string;

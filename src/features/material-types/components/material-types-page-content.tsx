@@ -60,7 +60,7 @@ export function MaterialTypesPageContent() {
       <div className="mb-4 flex items-center justify-between gap-4">
         <div>
           <p className="text-sm text-muted-foreground">
-            Catálogo maestro de tipos de material (MSC, MOC, MSLL, etc.). Fuente de referencia para la app móvil.
+            Catálogo maestro de tipos de material (MSC, MOC, MSLL, etc.) usado en cotizaciones.
           </p>
         </div>
         {canWrite ? (

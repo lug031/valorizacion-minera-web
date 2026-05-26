@@ -8,11 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ValuationSnapshotReadonly } from "@/features/valuations/components/valuation-snapshot-readonly";
 import { useValuation } from "@/features/valuations/hooks/use-valuations";
 import { tryParseSnapshot } from "@/lib/valuation/try-parse-snapshot";
-import {
-  formatDisplayDate,
-  formatDisplayDateTime,
-  syncStatusLabel,
-} from "@/lib/valuation/format";
+import { formatApiError } from "@/lib/errors/format-api-error";
+import { formatDisplayDate, formatDisplayDateTime, syncStatusLabel } from "@/lib/valuation/format";
 
 interface Props {
   id: string;
@@ -28,7 +25,7 @@ export function ValuationDetailContent({ id }: Props) {
   if (error) {
     return (
       <p className="p-6 text-sm text-destructive">
-        {error instanceof Error ? error.message : "Error al cargar la valorización"}
+        {formatApiError(error, "No se pudo cargar el detalle de la valorización.")}
       </p>
     );
   }
@@ -74,15 +71,15 @@ export function ValuationDetailContent({ id }: Props) {
         </CardHeader>
         <CardContent className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <p className="text-xs text-muted-foreground">Fórmula</p>
+            <p className="text-xs text-muted-foreground">Versión de cálculo</p>
             <p className="font-medium">{data.formulaVersion}</p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">ID móvil</p>
-            <p className="font-medium">{data.mobileId ?? "—"}</p>
+            <p className="text-xs text-muted-foreground">Referencia de origen</p>
+            <p className="font-medium font-mono text-xs">{data.mobileId ?? "—"}</p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">Creado por</p>
+            <p className="text-xs text-muted-foreground">Registrado por</p>
             <p className="font-medium">{data.createdByUserId ?? "—"}</p>
           </div>
           <div>
@@ -104,9 +101,8 @@ export function ValuationDetailContent({ id }: Props) {
             <CardTitle className="text-lg text-destructive">No se pudo abrir esta cotización</CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
-            Los datos del snapshot están dañados o incompletos. No es posible mostrar el detalle de la
-            valorización. Puede revisar el registro en la base de datos o eliminarlo desde la app móvil si
-            corresponde.
+            Los datos del registro están dañados o incompletos. No es posible mostrar el detalle de la
+            valorización. Contacte al administrador del sistema si el problema persiste.
           </CardContent>
         </Card>
       ) : (

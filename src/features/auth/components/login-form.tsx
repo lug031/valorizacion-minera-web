@@ -73,13 +73,22 @@ export function LoginForm() {
   });
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-100 via-white to-slate-200 p-6">
-      <Card className="w-full max-w-md border-primary/10 shadow-lg">
-        <CardHeader>
-          <CardTitle className="text-primary">{productName}</CardTitle>
-          <CardDescription>{adminSubtitle}</CardDescription>
-        </CardHeader>
-        <CardContent>
+    <div className="flex min-h-screen w-full flex-col bg-[#eef2f4]">
+      <header className="flex h-16 items-center justify-between gap-3 bg-[#001c23] px-4 sm:px-8">
+        <p className="shrink-0 text-lg font-extrabold tracking-tight text-white">
+          Valorización <span className="text-[#008ba3]">Minera</span>
+        </p>
+        <p className="min-w-0 flex-1 px-2 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-white/95 sm:text-xs">
+          {adminSubtitle}
+        </p>
+      </header>
+      <div className="flex flex-1 items-center justify-center p-6">
+        <Card className="w-full max-w-md border-[#e2e8f0] p-1 shadow-md">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xl">{productName}</CardTitle>
+            <CardDescription>Accede al panel administrativo.</CardDescription>
+          </CardHeader>
+          <CardContent>
           {requiresNewPassword ? (
             <form onSubmit={onSubmitNewPassword} className="space-y-4">
               <p className="text-sm text-muted-foreground">
@@ -136,6 +145,7 @@ export function LoginForm() {
           )}
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

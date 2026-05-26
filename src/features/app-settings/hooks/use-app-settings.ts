@@ -18,7 +18,10 @@ export function useMasterAppSettings() {
 export function useAppSettingsMutations() {
   const queryClient = useQueryClient();
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+  const invalidate = () => {
+    void queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+    void queryClient.invalidateQueries({ queryKey: ["dashboard-counts"] });
+  };
 
   const update = useMutation({
     mutationFn: (values: AppSettingsFormValues) => updateMasterAppSettings(values),

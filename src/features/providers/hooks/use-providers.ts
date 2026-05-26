@@ -1,9 +1,9 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   createProvider,
-  listProviders,
+  listProvidersPage,
   setProviderActive,
   updateProvider,
 } from "@/services/provider.service";
@@ -12,16 +12,21 @@ import type { ProviderFormValues } from "@/features/providers/schemas/provider.s
 const QUERY_KEY = ["providers"];
 
 export function useProviders() {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: QUERY_KEY,
-    queryFn: listProviders,
+    queryFn: ({ pageParam }) => listProvidersPage(pageParam),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => last.nextToken,
   });
 }
 
 export function useProviderMutations() {
   const queryClient = useQueryClient();
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+  const invalidate = () => {
+    void queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+    void queryClient.invalidateQueries({ queryKey: ["dashboard-counts"] });
+  };
 
   const create = useMutation({
     mutationFn: (values: ProviderFormValues) => createProvider(values),

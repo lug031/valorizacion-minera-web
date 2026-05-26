@@ -8,7 +8,7 @@ export default function UsuariosPage() {
     <AdminShell>
       <AdminHeader
         title="Usuarios"
-        description="Administre el acceso al panel web: roles, estado y perfiles de negocio vinculados a Cognito."
+        description="Administre el acceso al panel: roles, estado y perfiles de negocio."
       />
       <StaffUsersPageContent />
     </AdminShell>

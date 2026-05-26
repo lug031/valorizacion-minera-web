@@ -1,4 +1,5 @@
 import { adminDataClient } from "@/lib/amplify/data-client";
+import { LIST_PAGE_SIZE } from "@/lib/pagination/constants";
 import {
   formHasDefaults,
   normalizeProviderName,
@@ -6,6 +7,11 @@ import {
   type ProviderFormValues,
   type ProviderRecord,
 } from "@/features/providers/schemas/provider.schema";
+
+export interface ProviderListPage {
+  items: ProviderRecord[];
+  nextToken: string | null;
+}
 
 function mapDefaultsRow(row: {
   id: string;
@@ -80,6 +86,18 @@ function defaultsPayload(values: ProviderFormValues) {
   };
 }
 
+async function loadDefaultsMap(): Promise<Map<string, ProviderDefaultsRecord>> {
+  const { data, errors } = await adminDataClient.models.ProviderDefaults.list({ limit: 500 });
+  if (errors?.length) {
+    throw new Error(errors.map((e) => e.message).join("; "));
+  }
+  const map = new Map<string, ProviderDefaultsRecord>();
+  for (const row of data ?? []) {
+    map.set(row.providerId, mapDefaultsRow(row));
+  }
+  return map;
+}
+
 async function findDefaultsByProviderId(providerId: string): Promise<ProviderDefaultsRecord | null> {
   const { data, errors } = await adminDataClient.models.ProviderDefaults.list({
     filter: { providerId: { eq: providerId } },
@@ -94,16 +112,23 @@ async function findDefaultsByProviderId(providerId: string): Promise<ProviderDef
 
 async function assertUniqueName(name: string, excludeId?: string): Promise<void> {
   const normalized = normalizeProviderName(name).toLowerCase();
-  const { data, errors } = await adminDataClient.models.Provider.list({ limit: 200 });
-  if (errors?.length) {
-    throw new Error(errors.map((e) => e.message).join("; "));
-  }
-  const duplicate = (data ?? []).find(
-    (row) => row.id !== excludeId && normalizeProviderName(row.name).toLowerCase() === normalized
-  );
-  if (duplicate) {
-    throw new Error(`Ya existe un proveedor con el nombre "${duplicate.name}"`);
-  }
+  let nextToken: string | undefined;
+  do {
+    const { data, errors, nextToken: token } = await adminDataClient.models.Provider.list({
+      limit: LIST_PAGE_SIZE,
+      nextToken,
+    });
+    if (errors?.length) {
+      throw new Error(errors.map((e) => e.message).join("; "));
+    }
+    const duplicate = (data ?? []).find(
+      (row) => row.id !== excludeId && normalizeProviderName(row.name).toLowerCase() === normalized
+    );
+    if (duplicate) {
+      throw new Error(`Ya existe un proveedor con el nombre "${duplicate.name}"`);
+    }
+    nextToken = token ?? undefined;
+  } while (nextToken);
 }
 
 async function syncProviderDefaults(providerId: string, values: ProviderFormValues): Promise<ProviderDefaultsRecord | null> {
@@ -139,31 +164,35 @@ async function syncProviderDefaults(providerId: string, values: ProviderFormValu
   return mapDefaultsRow(data);
 }
 
-export async function listProviders(): Promise<ProviderRecord[]> {
-  const [providersResult, defaultsResult] = await Promise.all([
-    adminDataClient.models.Provider.list({ limit: 200 }),
-    adminDataClient.models.ProviderDefaults.list({ limit: 500 }),
+export async function listProvidersPage(nextToken?: string | null): Promise<ProviderListPage> {
+  const [providersResult, defaultsByProvider] = await Promise.all([
+    adminDataClient.models.Provider.list({
+      limit: LIST_PAGE_SIZE,
+      nextToken: nextToken ?? undefined,
+    }),
+    loadDefaultsMap(),
   ]);
 
   if (providersResult.errors?.length) {
     throw new Error(providersResult.errors.map((e) => e.message).join("; "));
   }
-  if (defaultsResult.errors?.length) {
-    throw new Error(defaultsResult.errors.map((e) => e.message).join("; "));
-  }
 
-  const defaultsByProvider = new Map<string, ProviderDefaultsRecord>();
-  for (const row of defaultsResult.data ?? []) {
-    defaultsByProvider.set(row.providerId, mapDefaultsRow(row));
-  }
+  const items = (providersResult.data ?? [])
+    .map((row) => mapProviderRow(row, defaultsByProvider.get(row.id) ?? null))
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.name.localeCompare(b.name, "es"));
 
-  const rows = (providersResult.data ?? []).map((row) =>
-    mapProviderRow(row, defaultsByProvider.get(row.id) ?? null)
-  );
+  return { items, nextToken: providersResult.nextToken ?? null };
+}
 
-  return rows.sort(
-    (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.name.localeCompare(b.name, "es")
-  );
+export async function listProviders(): Promise<ProviderRecord[]> {
+  const all: ProviderRecord[] = [];
+  let token: string | null = null;
+  do {
+    const page = await listProvidersPage(token);
+    all.push(...page.items);
+    token = page.nextToken;
+  } while (token);
+  return all;
 }
 
 export async function createProvider(values: ProviderFormValues): Promise<ProviderRecord> {

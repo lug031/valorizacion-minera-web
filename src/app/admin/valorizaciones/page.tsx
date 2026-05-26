@@ -8,7 +8,7 @@ export default function ValorizacionesPage() {
     <AdminShell>
       <AdminHeader
         title="Valorizaciones"
-        description="Consulte cotizaciones registradas: listado, filtros y detalle desde snapshot guardado."
+        description="Consulte cotizaciones registradas: listado, filtros y detalle de cada operación."
       />
       <ValuationsPageContent />
     </AdminShell>

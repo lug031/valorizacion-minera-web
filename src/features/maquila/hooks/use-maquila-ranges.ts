@@ -21,7 +21,10 @@ export function useMaquilaRanges() {
 export function useMaquilaRangeMutations() {
   const queryClient = useQueryClient();
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+  const invalidate = () => {
+    void queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+    void queryClient.invalidateQueries({ queryKey: ["dashboard-counts"] });
+  };
 
   const create = useMutation({
     mutationFn: (values: MaquilaRangeFormValues) => createMaquilaRange(values),

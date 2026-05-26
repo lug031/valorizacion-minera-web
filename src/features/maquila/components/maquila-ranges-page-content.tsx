@@ -17,6 +17,7 @@ import { useCanWriteAdmin } from "@/providers/auth-provider";
 import { MaquilaRangeFormDialog } from "@/features/maquila/components/maquila-range-form-dialog";
 import { useMaquilaRangeMutations, useMaquilaRanges } from "@/features/maquila/hooks/use-maquila-ranges";
 import type { MaquilaRangeFormValues, MaquilaRangeRecord } from "@/features/maquila/schemas/maquila-range.schema";
+import { formatApiError } from "@/lib/errors/format-api-error";
 
 export function MaquilaRangesPageContent() {
   const canWrite = useCanWriteAdmin();
@@ -51,7 +52,7 @@ export function MaquilaRangesPageContent() {
       }
       setDialogOpen(false);
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : "No se pudo guardar");
+      setFormError(formatApiError(e, "No se pudo guardar el rango de maquila."));
     }
   };
 
@@ -60,7 +61,7 @@ export function MaquilaRangesPageContent() {
       <div className="mb-4 flex items-center justify-between gap-4">
         <div>
           <p className="text-sm text-muted-foreground">
-            Tabla maestra para sugerencias de maquila según ley oro (oz/tc). Alineada a la app móvil.
+            Tabla maestra para sugerencias de maquila según ley oro (oz/tc).
           </p>
         </div>
         {canWrite ? (
@@ -77,7 +78,7 @@ export function MaquilaRangesPageContent() {
         <p className="text-sm text-muted-foreground">Cargando rangos…</p>
       ) : error ? (
         <p className="text-sm text-destructive">
-          {error instanceof Error ? error.message : "Error al cargar rangos"}
+          {formatApiError(error, "No se pudo cargar los rangos de maquila.")}
         </p>
       ) : (
         <div className="rounded-lg border bg-card">

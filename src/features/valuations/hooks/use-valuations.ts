@@ -1,13 +1,15 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { getValuationById, listValuations } from "@/services/valuation.service";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { getValuationById, listValuationsPage } from "@/services/valuation.service";
 import type { ValuationFilters } from "@/features/valuations/schemas/valuation-filters.schema";
 
 export function useValuations(filters: ValuationFilters) {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: ["valuations", filters],
-    queryFn: () => listValuations(filters),
+    queryFn: ({ pageParam }) => listValuationsPage(filters, pageParam),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => last.nextToken,
   });
 }
 

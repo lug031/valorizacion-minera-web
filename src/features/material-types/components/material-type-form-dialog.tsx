@@ -79,7 +79,7 @@ export function MaterialTypeFormDialog({
           {readOnly ? "Ver tipo MAT" : isEditing ? "Editar tipo MAT" : "Nuevo tipo MAT"}
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Catálogo maestro de clasificación de material para cotizaciones en campo.
+          Catálogo maestro de clasificación de material para cotizaciones.
         </p>
 
         <form onSubmit={handleSubmit(onSubmit)} className="mt-5 space-y-4">

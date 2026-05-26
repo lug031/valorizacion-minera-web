@@ -1,10 +1,16 @@
 import { adminDataClient } from "@/lib/amplify/data-client";
+import { LIST_PAGE_SIZE } from "@/lib/pagination/constants";
 import { getPrimaryTotals, tryParseSnapshot } from "@/lib/valuation/try-parse-snapshot";
 import type {
   ValuationFilters,
   ValuationListItem,
   ValuationRecord,
 } from "@/features/valuations/schemas/valuation-filters.schema";
+
+export interface ValuationListPage {
+  items: ValuationListItem[];
+  nextToken: string | null;
+}
 
 function mapRow(row: {
   id: string;
@@ -79,21 +85,35 @@ function buildAmplifyFilter(filters: ValuationFilters) {
   return { and: parts };
 }
 
-export async function listValuations(filters: ValuationFilters = {}): Promise<ValuationListItem[]> {
-  const { data, errors } = await adminDataClient.models.Valuation.list({
+function sortItems(items: ValuationListItem[]): ValuationListItem[] {
+  return [...items].sort((a, b) => {
+    const da = a.createdAt ?? a.fecha;
+    const db = b.createdAt ?? b.fecha;
+    return db.localeCompare(da);
+  });
+}
+
+export async function listValuationsPage(
+  filters: ValuationFilters = {},
+  nextToken?: string | null
+): Promise<ValuationListPage> {
+  const { data, errors, nextToken: token } = await adminDataClient.models.Valuation.list({
     filter: buildAmplifyFilter(filters),
-    limit: 200,
+    limit: LIST_PAGE_SIZE,
+    nextToken: nextToken ?? undefined,
   });
   if (errors?.length) {
     throw new Error(errors.map((e) => e.message).join("; "));
   }
 
-  const rows = (data ?? []).map(mapRow).map(toListItem);
-  return rows.sort((a, b) => {
-    const da = a.createdAt ?? a.fecha;
-    const db = b.createdAt ?? b.fecha;
-    return db.localeCompare(da);
-  });
+  const items = sortItems((data ?? []).map(mapRow).map(toListItem));
+  return { items, nextToken: token ?? null };
+}
+
+/** Compatibilidad: primera página completa (máx. una página en memoria). */
+export async function listValuations(filters: ValuationFilters = {}): Promise<ValuationListItem[]> {
+  const page = await listValuationsPage(filters);
+  return page.items;
 }
 
 export async function getValuationById(id: string): Promise<ValuationRecord | null> {

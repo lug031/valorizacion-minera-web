@@ -15,7 +15,7 @@ export default function ValorizacionDetailPage({
     <AdminShell>
       <AdminHeader
         title="Detalle de valorización"
-        description="Vista de solo lectura reconstruida desde el snapshot guardado."
+        description="Vista de solo lectura con el detalle completo de la cotización."
       />
       <ValuationDetailContent id={id} />
     </AdminShell>

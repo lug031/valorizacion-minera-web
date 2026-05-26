@@ -28,13 +28,13 @@ export function syncStatusLabel(status: string | null | undefined): string {
   if (!status) return "Sin estado";
   switch (status.toLowerCase()) {
     case "local":
-      return "Solo móvil";
+      return "Borrador";
     case "synced":
-      return "Sincronizado";
+      return "Registrado";
     case "pending":
-      return "Pendiente sync";
+      return "En proceso";
     case "error":
-      return "Error sync";
+      return "Con error";
     default:
       return status;
   }

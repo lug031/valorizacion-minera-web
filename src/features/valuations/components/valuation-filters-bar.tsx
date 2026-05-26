@@ -7,8 +7,8 @@ import type { ValuationFilters } from "@/features/valuations/schemas/valuation-f
 
 const SYNC_OPTIONS = [
   { value: "", label: "Todos" },
-  { value: "local", label: "Solo móvil" },
-  { value: "synced", label: "Sincronizado" },
+  { value: "local", label: "Borrador" },
+  { value: "synced", label: "Registrado" },
   { value: "pending", label: "Pendiente" },
 ];
 
@@ -72,7 +72,7 @@ export function ValuationFiltersBar({ filters, onChange, onApply, onClear }: Pro
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="filter-sync">Estado sync</Label>
+          <Label htmlFor="filter-sync">Estado</Label>
           <select
             id="filter-sync"
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"

@@ -24,6 +24,7 @@ import {
   sessionStaffGroups,
   type StaffGroup,
 } from "@/lib/auth/cognito-groups";
+import { recordLastAccess } from "@/lib/datetime/format-last-access";
 
 interface AuthContextValue {
   user: AuthUser | null;
@@ -92,6 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return "new-password-required" as const;
       }
       await refreshSession();
+      recordLastAccess();
       return "signed-in" as const;
     },
     [refreshSession]
@@ -101,6 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (newPassword: string) => {
       await confirmSignIn({ challengeResponse: newPassword });
       await refreshSession();
+      recordLastAccess();
     },
     [refreshSession]
   );

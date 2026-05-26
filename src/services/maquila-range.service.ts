@@ -1,4 +1,5 @@
 import { adminDataClient } from "@/lib/amplify/data-client";
+import { assertActiveMaquilaNoOverlap } from "@/lib/maquila/validate-overlap";
 import type { MaquilaRangeRecord } from "@/features/maquila/schemas/maquila-range.schema";
 import type { MaquilaRangeFormValues } from "@/features/maquila/schemas/maquila-range.schema";
 
@@ -38,6 +39,8 @@ export async function listMaquilaRanges(): Promise<MaquilaRangeRecord[]> {
 }
 
 export async function createMaquilaRange(values: MaquilaRangeFormValues) {
+  const existing = await listMaquilaRanges();
+  assertActiveMaquilaNoOverlap(values, existing);
   const { data, errors } = await adminDataClient.models.MaquilaRange.create({
     minLeyOzTc: values.minLeyOzTc,
     maxLeyOzTc: values.maxLeyOzTc,
@@ -52,6 +55,8 @@ export async function createMaquilaRange(values: MaquilaRangeFormValues) {
 }
 
 export async function updateMaquilaRange(id: string, values: MaquilaRangeFormValues) {
+  const existing = await listMaquilaRanges();
+  assertActiveMaquilaNoOverlap(values, existing, id);
   const { data, errors } = await adminDataClient.models.MaquilaRange.update({
     id,
     minLeyOzTc: values.minLeyOzTc,
@@ -67,6 +72,24 @@ export async function updateMaquilaRange(id: string, values: MaquilaRangeFormVal
 }
 
 export async function setMaquilaRangeActive(id: string, isActive: boolean) {
+  if (isActive) {
+    const existing = await listMaquilaRanges();
+    const row = existing.find((r) => r.id === id);
+    if (row) {
+      assertActiveMaquilaNoOverlap(
+        {
+          minLeyOzTc: row.minLeyOzTc,
+          maxLeyOzTc: row.maxLeyOzTc,
+          maquila: row.maquila,
+          sortOrder: row.sortOrder ?? 0,
+          isActive: true,
+          notes: row.notes ?? undefined,
+        },
+        existing,
+        id
+      );
+    }
+  }
   const { data, errors } = await adminDataClient.models.MaquilaRange.update({ id, isActive });
   if (errors?.length) throw new Error(errors.map((e) => e.message).join("; "));
   if (!data) throw new Error("No se pudo cambiar el estado");

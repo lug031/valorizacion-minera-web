@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Pencil, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { LoadMoreFooter } from "@/components/ui/load-more-footer";
 import {
   Table,
   TableBody,
@@ -21,15 +23,19 @@ import {
   type ProviderFormValues,
   type ProviderRecord,
 } from "@/features/providers/schemas/provider.schema";
+import { formatApiError } from "@/lib/errors/format-api-error";
 
 export function ProvidersPageContent() {
   const canWrite = useCanWriteAdmin();
-  const { data, isLoading, error } = useProviders();
+  const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } = useProviders();
   const { create, update, toggleActive } = useProviderMutations();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<ProviderRecord | null>(null);
   const [readOnly, setReadOnly] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [deactivateTarget, setDeactivateTarget] = useState<ProviderRecord | null>(null);
+
+  const rows = useMemo(() => data?.pages.flatMap((page) => page.items) ?? [], [data]);
 
   const openCreate = () => {
     setEditing(null);
@@ -55,7 +61,25 @@ export function ProvidersPageContent() {
       }
       setDialogOpen(false);
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : "No se pudo guardar");
+      setFormError(formatApiError(e, "No se pudo guardar el proveedor."));
+    }
+  };
+
+  const requestToggleActive = (row: ProviderRecord, isActive: boolean) => {
+    if (!isActive) {
+      setDeactivateTarget(row);
+      return;
+    }
+    void confirmToggle(row, true);
+  };
+
+  const confirmToggle = async (row: ProviderRecord, isActive: boolean) => {
+    setFormError(null);
+    try {
+      await toggleActive.mutateAsync({ id: row.id, isActive });
+      setDeactivateTarget(null);
+    } catch (e) {
+      setFormError(formatApiError(e, "No se pudo cambiar el estado del proveedor."));
     }
   };
 
@@ -64,7 +88,7 @@ export function ProvidersPageContent() {
       <div className="mb-4 flex items-center justify-between gap-4">
         <div>
           <p className="text-sm text-muted-foreground">
-            Catálogo maestro de proveedores, mineros y comuneros. Fuente de referencia para la app móvil.
+            Catálogo maestro de proveedores, mineros y comuneros para cotizaciones y reportes.
           </p>
         </div>
         {canWrite ? (
@@ -81,7 +105,7 @@ export function ProvidersPageContent() {
         <p className="text-sm text-muted-foreground">Cargando proveedores…</p>
       ) : error ? (
         <p className="text-sm text-destructive">
-          {error instanceof Error ? error.message : "Error al cargar proveedores"}
+          {formatApiError(error, "No se pudo cargar el listado de proveedores.")}
         </p>
       ) : (
         <div className="rounded-lg border bg-card">
@@ -97,14 +121,14 @@ export function ProvidersPageContent() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {(data ?? []).length === 0 ? (
+              {rows.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
                     No hay proveedores registrados. {canWrite ? "Cree el primero." : ""}
                   </TableCell>
                 </TableRow>
               ) : (
-                (data ?? []).map((row) => (
+                rows.map((row) => (
                   <TableRow key={row.id}>
                     <TableCell>{row.sortOrder ?? 0}</TableCell>
                     <TableCell className="font-medium">{row.name}</TableCell>
@@ -134,9 +158,7 @@ export function ProvidersPageContent() {
                         {canWrite ? (
                           <Switch
                             checked={Boolean(row.isActive)}
-                            onCheckedChange={(v) =>
-                              void toggleActive.mutateAsync({ id: row.id, isActive: v })
-                            }
+                            onCheckedChange={(v) => requestToggleActive(row, v)}
                           />
                         ) : null}
                       </div>
@@ -146,6 +168,12 @@ export function ProvidersPageContent() {
               )}
             </TableBody>
           </Table>
+          <LoadMoreFooter
+            hasMore={Boolean(hasNextPage)}
+            loading={isFetchingNextPage}
+            onLoadMore={() => void fetchNextPage()}
+            shown={rows.length}
+          />
         </div>
       )}
 
@@ -156,6 +184,19 @@ export function ProvidersPageContent() {
         saving={create.isPending || update.isPending}
         onClose={() => setDialogOpen(false)}
         onSubmit={(values) => void handleSubmit(values)}
+      />
+
+      <ConfirmDialog
+        open={Boolean(deactivateTarget)}
+        title="Desactivar proveedor"
+        description={`¿Confirma desactivar a "${deactivateTarget?.name}"? No aparecerá en nuevas cotizaciones hasta reactivarlo.`}
+        confirmLabel="Desactivar"
+        destructive
+        loading={toggleActive.isPending}
+        onCancel={() => setDeactivateTarget(null)}
+        onConfirm={() => {
+          if (deactivateTarget) void confirmToggle(deactivateTarget, false);
+        }}
       />
     </div>
   );

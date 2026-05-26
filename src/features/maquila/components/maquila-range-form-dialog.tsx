@@ -80,7 +80,7 @@ export function MaquilaRangeFormDialog({
           {readOnly ? "Ver rango" : initial ? "Editar rango" : "Nuevo rango de maquila"}
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Ley oro en oz/tc → maquila sugerida para cotización en campo.
+          Ley oro en oz/tc → maquila sugerida para cotización.
         </p>
 
         <form

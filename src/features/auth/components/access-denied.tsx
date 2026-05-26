@@ -8,12 +8,13 @@ export function AccessDenied() {
   const { logout } = useAuth();
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-6">
-      <Card className="max-w-md">
+    <div className="flex min-h-screen items-center justify-center bg-[#eef2f4] p-6">
+      <Card className="max-w-md border-[#e2e8f0] shadow-md">
         <CardHeader>
           <CardTitle>Acceso no autorizado</CardTitle>
           <CardDescription>
-            Su cuenta no pertenece a un grupo con acceso al panel (admin o supervisor).
+            Su cuenta no tiene permisos para ingresar al panel administrativo. Solicite acceso a un
+            administrador del sistema.
           </CardDescription>
         </CardHeader>
         <CardContent>

@@ -1,15 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import {
-  ClipboardList,
-  Factory,
-  History,
-  LayoutDashboard,
-  Package,
-  Settings,
-  Shield,
-  Truck,
-  Users,
-} from "lucide-react";
+import { ClipboardList, Factory, LayoutDashboard, Package, Settings, Truck, Users } from "lucide-react";
 
 export type NavItemStatus = "active" | "coming_soon";
 
@@ -29,8 +19,6 @@ export const adminNavigation: AdminNavItem[] = [
   { href: "/admin/proveedores", label: "Proveedores", icon: Truck, status: "active" },
   { href: "/admin/valorizaciones", label: "Valorizaciones", icon: ClipboardList, status: "active" },
   { href: "/admin/usuarios", label: "Usuarios", icon: Users, status: "active" },
-  { href: "/admin/auditoria", label: "Auditoría", icon: History, status: "coming_soon" },
-  { href: "/admin/seguridad", label: "Seguridad", icon: Shield, status: "coming_soon", adminOnly: true },
 ];
 
 export const productName = "Valorización Minera";

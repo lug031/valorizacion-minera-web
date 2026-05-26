@@ -7,17 +7,19 @@ export function AdminHeader({ title, description }: { title: string; description
   const { user, role, logout } = useAuth();
 
   return (
-    <header className="flex items-start justify-between border-b bg-background px-6 py-5">
+    <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-[#e2e8f0] bg-white px-8">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-primary">{title}</h1>
-        {description ? <p className="mt-1 text-sm text-muted-foreground">{description}</p> : null}
+        <h1 className="text-sm font-bold text-[#001c23]">{title}</h1>
+        {description ? <p className="text-xs text-[#64748b]">{description}</p> : null}
       </div>
-      <div className="flex items-center gap-4 text-right text-sm">
-        <div>
-          <p className="font-medium">{user?.signInDetails?.loginId ?? "Usuario"}</p>
-          <p className="text-muted-foreground capitalize">{role ?? "staff"}</p>
+      <div className="flex items-center gap-4 text-right text-xs">
+        <div className="hidden sm:block">
+          <p className="font-bold text-[#001c23]">{user?.signInDetails?.loginId ?? "Usuario"}</p>
+          <p className="text-[#64748b]">
+            {role === "admin" ? "Administrador" : role === "supervisor" ? "Supervisor" : "Usuario"}
+          </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => void logout()}>
+        <Button variant="link" size="sm" className="px-0 text-[#008ba3]" onClick={() => void logout()}>
           Salir
         </Button>
       </div>

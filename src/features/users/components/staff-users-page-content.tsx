@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Pencil, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { LoadMoreFooter } from "@/components/ui/load-more-footer";
 import {
   Table,
   TableBody,
@@ -23,6 +25,8 @@ import {
   type StaffUserRecord,
   type UpdateStaffUserFormValues,
 } from "@/features/users/schemas/staff-user.schema";
+import { formatApiError } from "@/lib/errors/format-api-error";
+import { LIST_PAGE_SIZE } from "@/lib/pagination/constants";
 
 function roleBadge(role: StaffUserRecord["role"]) {
   if (role === "admin") {
@@ -52,6 +56,12 @@ export function StaffUsersPageContent() {
   const [readOnly, setReadOnly] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [createdPassword, setCreatedPassword] = useState<string | null>(null);
+  const [visibleCount, setVisibleCount] = useState(LIST_PAGE_SIZE);
+  const [deactivateTarget, setDeactivateTarget] = useState<StaffUserRecord | null>(null);
+
+  const rows = useMemo(() => (data ?? []).slice(0, visibleCount), [data, visibleCount]);
+  const totalRows = data?.length ?? 0;
+  const hasMore = visibleCount < totalRows;
 
   const openCreate = () => {
     setEditing(null);
@@ -74,13 +84,14 @@ export function StaffUsersPageContent() {
     try {
       const result = await create.mutateAsync(values);
       setDialogOpen(false);
+      setVisibleCount(LIST_PAGE_SIZE);
       if (result.temporaryPassword) {
         setCreatedPassword(
           `Usuario creado. Contraseña temporal para ${result.email ?? result.username}: ${result.temporaryPassword}`
         );
       }
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : "No se pudo crear el usuario");
+      setFormError(formatApiError(e, "No se pudo crear el usuario."));
     }
   };
 
@@ -91,19 +102,28 @@ export function StaffUsersPageContent() {
       await update.mutateAsync({ id: editing.id, values });
       setDialogOpen(false);
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : "No se pudo actualizar");
+      setFormError(formatApiError(e, "No se pudo actualizar el usuario."));
     }
   };
 
-  const handleToggleActive = async (row: StaffUserRecord, isActive: boolean) => {
+  const requestToggleActive = (row: StaffUserRecord, isActive: boolean) => {
+    if (!isActive) {
+      setDeactivateTarget(row);
+      return;
+    }
+    void confirmToggle(row, true);
+  };
+
+  const confirmToggle = async (row: StaffUserRecord, isActive: boolean) => {
     setFormError(null);
     try {
       await update.mutateAsync({
         id: row.id,
         values: { ...recordToUpdateFormValues(row), isActive },
       });
+      setDeactivateTarget(null);
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : "No se pudo cambiar el estado");
+      setFormError(formatApiError(e, "No se pudo cambiar el estado del usuario."));
     }
   };
 
@@ -112,7 +132,7 @@ export function StaffUsersPageContent() {
       <div className="mb-4 flex items-center justify-between gap-4">
         <div>
           <p className="text-sm text-muted-foreground">
-            Gobierno de acceso al panel web/admin. Los usuarios operadores de campo no se administran aquí.
+            Administre usuarios con acceso al panel: roles, estado y perfiles de negocio.
           </p>
         </div>
         {canWrite ? (
@@ -134,7 +154,7 @@ export function StaffUsersPageContent() {
         <p className="text-sm text-muted-foreground">Cargando usuarios…</p>
       ) : error ? (
         <p className="text-sm text-destructive">
-          {error instanceof Error ? error.message : "Error al cargar usuarios"}
+          {formatApiError(error, "No se pudo cargar el listado de usuarios.")}
         </p>
       ) : (
         <div className="rounded-lg border bg-card">
@@ -151,14 +171,14 @@ export function StaffUsersPageContent() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {(data ?? []).length === 0 ? (
+              {rows.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
                     No hay usuarios registrados. {canWrite ? "Cree el primero." : ""}
                   </TableCell>
                 </TableRow>
               ) : (
-                (data ?? []).map((row) => (
+                rows.map((row) => (
                   <TableRow key={row.id}>
                     <TableCell className="font-medium">{row.displayName ?? "—"}</TableCell>
                     <TableCell>{row.email ?? row.username}</TableCell>
@@ -173,7 +193,7 @@ export function StaffUsersPageContent() {
                     <TableCell className="text-muted-foreground">
                       {accessStatusLabel(row.accessStatus)}
                     </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
+                    <TableCell className="text-sm text-muted-foreground">
                       {formatDate(row.updatedAt ?? row.createdAt)}
                     </TableCell>
                     <TableCell className="text-right">
@@ -185,7 +205,7 @@ export function StaffUsersPageContent() {
                         {canWrite ? (
                           <Switch
                             checked={Boolean(row.isActive)}
-                            onCheckedChange={(v) => void handleToggleActive(row, v)}
+                            onCheckedChange={(v) => requestToggleActive(row, v)}
                           />
                         ) : null}
                       </div>
@@ -195,6 +215,12 @@ export function StaffUsersPageContent() {
               )}
             </TableBody>
           </Table>
+          <LoadMoreFooter
+            hasMore={hasMore}
+            onLoadMore={() => setVisibleCount((c) => c + LIST_PAGE_SIZE)}
+            shown={rows.length}
+            total={totalRows}
+          />
         </div>
       )}
 
@@ -206,6 +232,19 @@ export function StaffUsersPageContent() {
         onClose={() => setDialogOpen(false)}
         onSubmitCreate={(values) => void handleCreate(values)}
         onSubmitUpdate={(values) => void handleUpdate(values)}
+      />
+
+      <ConfirmDialog
+        open={Boolean(deactivateTarget)}
+        title="Desactivar usuario"
+        description={`¿Confirma desactivar a ${deactivateTarget?.displayName ?? deactivateTarget?.email ?? "este usuario"}? No podrá acceder al panel hasta reactivarlo.`}
+        confirmLabel="Desactivar"
+        destructive
+        loading={update.isPending}
+        onCancel={() => setDeactivateTarget(null)}
+        onConfirm={() => {
+          if (deactivateTarget) void confirmToggle(deactivateTarget, false);
+        }}
       />
     </div>
   );

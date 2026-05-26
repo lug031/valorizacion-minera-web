@@ -15,6 +15,8 @@ import {
   type AppSettingsRecord,
 } from "@/features/app-settings/schemas/app-settings.schema";
 import { useAppSettingsMutations } from "@/features/app-settings/hooks/use-app-settings";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { formatApiError } from "@/lib/errors/format-api-error";
 
 interface Props {
   settings: AppSettingsRecord;
@@ -47,6 +49,7 @@ export function AppSettingsForm({ settings }: Props) {
   const { update, restoreReference } = useAppSettingsMutations();
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [restoreOpen, setRestoreOpen] = useState(false);
 
   const {
     register,
@@ -69,25 +72,19 @@ export function AppSettingsForm({ settings }: Props) {
       await update.mutateAsync(values);
       setSuccessMessage("Configuración guardada correctamente.");
     } catch (e) {
-      setErrorMessage(e instanceof Error ? e.message : "No se pudo guardar");
+      setErrorMessage(formatApiError(e, "No se pudo guardar la configuración."));
     }
   });
 
   const onRestore = async () => {
-    if (
-      !window.confirm(
-        "¿Restaurar los valores de referencia del cotizador? Se sobrescribirán los defaults actuales."
-      )
-    ) {
-      return;
-    }
     setSuccessMessage(null);
     setErrorMessage(null);
     try {
       await restoreReference.mutateAsync();
+      setRestoreOpen(false);
       setSuccessMessage("Valores de referencia restaurados.");
     } catch (e) {
-      setErrorMessage(e instanceof Error ? e.message : "No se pudo restaurar");
+      setErrorMessage(formatApiError(e, "No se pudo restaurar la configuración."));
     }
   };
 
@@ -113,8 +110,8 @@ export function AppSettingsForm({ settings }: Props) {
         <CardHeader>
           <CardTitle className="text-lg">Configuración global</CardTitle>
           <CardDescription>
-            Valores iniciales que se aplicarán al crear nuevas cotizaciones en campo (cuando la
-            sincronización esté activa). {updatedLabel ? `Última actualización: ${updatedLabel}.` : ""}
+            Valores iniciales que se aplicarán al crear nuevas cotizaciones.{" "}
+            {updatedLabel ? `Última actualización: ${updatedLabel}.` : ""}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -237,16 +234,22 @@ export function AppSettingsForm({ settings }: Props) {
           <Button type="button" variant="outline" disabled={saving || !isDirty} onClick={onCancel}>
             Cancelar cambios
           </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={saving}
-            onClick={() => void onRestore()}
-          >
-            {restoreReference.isPending ? "Restaurando…" : "Restaurar valores de referencia"}
+          <Button type="button" variant="secondary" disabled={saving} onClick={() => setRestoreOpen(true)}>
+            Restaurar valores de referencia
           </Button>
         </div>
       ) : null}
+
+      <ConfirmDialog
+        open={restoreOpen}
+        title="Restaurar valores de referencia"
+        description="Se reemplazarán los parámetros comerciales actuales por los valores de referencia del sistema. Esta acción no se puede deshacer desde esta pantalla."
+        confirmLabel="Restaurar"
+        destructive
+        loading={restoreReference.isPending}
+        onCancel={() => setRestoreOpen(false)}
+        onConfirm={() => void onRestore()}
+      />
     </form>
   );
 }

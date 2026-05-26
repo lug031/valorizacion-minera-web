@@ -7,9 +7,9 @@ import { AdminGate } from "@/components/admin/admin-gate";
 export function AdminShell({ children }: { children: React.ReactNode }) {
   return (
     <AdminGate>
-      <div className="flex min-h-screen bg-muted/30">
+      <div className="flex min-h-screen bg-[#f3f7f8] text-[#001c23]">
         <AdminSidebar />
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="ml-64 flex min-w-0 flex-1 flex-col">
           {children}
         </div>
       </div>

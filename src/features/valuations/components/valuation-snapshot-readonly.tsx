@@ -30,7 +30,7 @@ export function ValuationSnapshotReadonly({ snapshot }: Props) {
 
   if (!commercial || !result) {
     return (
-      <p className="text-sm text-destructive">El snapshot no contiene un escenario válido para mostrar.</p>
+      <p className="text-sm text-destructive">La cotización no contiene un escenario válido para mostrar.</p>
     );
   }
 
@@ -91,7 +91,7 @@ export function ValuationSnapshotReadonly({ snapshot }: Props) {
         <CardHeader>
           <CardTitle className="text-lg">Resultados</CardTitle>
           <CardDescription>
-            Fórmula {snapshot.formulaVersion} · calculado {snapshot.calculatedAt}
+            Versión {snapshot.formulaVersion} · calculado el {snapshot.calculatedAt}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
