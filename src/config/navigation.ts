@@ -23,5 +23,4 @@ export const adminNavigation: AdminNavItem[] = [
   { href: "/admin/usuarios", label: "Usuarios", icon: Users, status: "active" },
 ];
 
-export const productName = "Valorización Minera";
 export const adminSubtitle = "Panel de administración";

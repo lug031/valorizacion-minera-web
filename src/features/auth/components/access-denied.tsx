@@ -1,11 +1,18 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/providers/auth-provider";
 
 export function AccessDenied() {
+  const router = useRouter();
   const { logout } = useAuth();
+
+  const handleLogout = async () => {
+    await logout();
+    router.replace("/login");
+  };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#eef2f4] p-6">
@@ -18,7 +25,7 @@ export function AccessDenied() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button variant="outline" onClick={() => void logout()}>
+          <Button variant="outline" onClick={() => void handleLogout()}>
             Cerrar sesión
           </Button>
         </CardContent>

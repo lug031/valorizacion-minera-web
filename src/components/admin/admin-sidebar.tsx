@@ -25,10 +25,7 @@ export function AdminSidebar() {
   return (
     <aside className="custom-scrollbar fixed z-20 flex h-full w-64 shrink-0 flex-col overflow-y-auto bg-[#001c23] text-white">
       <div className="px-6 py-6">
-        <p className="text-xl font-extrabold tracking-tight text-white">
-          Valorización <span className="text-[#008ba3]">Minera</span>
-        </p>
-        <p className="mt-2 text-xs font-semibold uppercase tracking-[0.2em] text-white/65">{adminSubtitle}</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/65">{adminSubtitle}</p>
       </div>
       <nav className="flex-1 space-y-1 px-4 py-4">
         {adminNavigation

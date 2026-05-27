@@ -1,10 +1,17 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/providers/auth-provider";
 
 export function AdminHeader({ title, description }: { title: string; description?: string }) {
+  const router = useRouter();
   const { user, role, logout } = useAuth();
+
+  const handleLogout = async () => {
+    await logout();
+    router.replace("/login");
+  };
 
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-[#e2e8f0] bg-white px-8">
@@ -19,7 +26,7 @@ export function AdminHeader({ title, description }: { title: string; description
             {role === "admin" ? "Administrador" : role === "supervisor" ? "Supervisor" : "Usuario"}
           </p>
         </div>
-        <Button variant="link" size="sm" className="px-0 text-[#008ba3]" onClick={() => void logout()}>
+        <Button variant="link" size="sm" className="px-0 text-[#008ba3]" onClick={() => void handleLogout()}>
           Salir
         </Button>
       </div>

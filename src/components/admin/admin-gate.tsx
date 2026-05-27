@@ -1,11 +1,19 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/providers/auth-provider";
-import { LoginForm } from "@/features/auth/components/login-form";
 import { AccessDenied } from "@/features/auth/components/access-denied";
 
 export function AdminGate({ children }: { children: React.ReactNode }) {
   const { user, loading, staffAccess } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace("/login");
+    }
+  }, [loading, user, router]);
 
   if (loading) {
     return (
@@ -16,7 +24,11 @@ export function AdminGate({ children }: { children: React.ReactNode }) {
   }
 
   if (!user) {
-    return <LoginForm />;
+    return (
+      <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
+        Redirigiendo al inicio de sesión…
+      </div>
+    );
   }
 
   if (staffAccess === "pending") {
