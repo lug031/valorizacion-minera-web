@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/providers/auth-provider";
-import { defaultAdminRoute } from "@/config/navigation";
+import { adminSubtitle, defaultAdminRoute } from "@/config/navigation";
 
 const loginSchema = z.object({
   email: z.string().min(1, "Ingrese su correo").email("Correo inválido"),
@@ -93,8 +93,11 @@ export function LoginForm() {
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-[#eef2f4]">
-      <header className="flex h-16 items-center justify-center bg-[#001c23] px-4 sm:px-8">
-        <p className="text-lg font-extrabold tracking-tight text-white">Iniciar sesión</p>
+      <header className="flex h-16 items-center justify-between gap-3 bg-[#001c23] px-4 sm:px-8">
+        <div className="shrink-0" aria-hidden />
+        <p className="min-w-0 flex-1 px-2 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-white/95 sm:text-xs">
+          {adminSubtitle}
+        </p>
       </header>
       <div className="flex flex-1 items-center justify-center p-6">
         <Card className="w-full max-w-md border-[#e2e8f0] p-1 shadow-md">
