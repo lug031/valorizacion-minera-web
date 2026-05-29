@@ -16,6 +16,7 @@ import {
 } from "@/features/app-settings/schemas/app-settings.schema";
 import { useAppSettingsMutations } from "@/features/app-settings/hooks/use-app-settings";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { InterSpotUpdatePanel } from "@/features/app-settings/components/inter-spot-update-panel";
 import { formatApiError } from "@/lib/errors/format-api-error";
 
 interface Props {
@@ -196,24 +197,30 @@ export function AppSettingsForm({ settings }: Props) {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Intermediación (INTER)</CardTitle>
-          <CardDescription>Precios de referencia INTER por metal.</CardDescription>
+          <CardTitle className="text-lg">Precio internacional (INTER)</CardTitle>
+          <CardDescription>
+            Valores maestros en US$/oz para nuevas cotizaciones. Puede editarlos manualmente o
+            actualizarlos desde la fuente de mercado.
+          </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-2">
-          <Field
-            id="defaultInterGold"
-            label="INTER oro (US$)"
-            disabled={readOnly || saving}
-            error={errors.defaultInterGold?.message}
-            {...register("defaultInterGold")}
-          />
-          <Field
-            id="defaultInterSilver"
-            label="INTER plata (US$)"
-            disabled={readOnly || saving}
-            error={errors.defaultInterSilver?.message}
-            {...register("defaultInterSilver")}
-          />
+        <CardContent className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field
+              id="defaultInterGold"
+              label="INTER oro (US$/oz)"
+              disabled={readOnly || saving}
+              error={errors.defaultInterGold?.message}
+              {...register("defaultInterGold")}
+            />
+            <Field
+              id="defaultInterSilver"
+              label="INTER plata (US$/oz)"
+              disabled={readOnly || saving}
+              error={errors.defaultInterSilver?.message}
+              {...register("defaultInterSilver")}
+            />
+          </div>
+          <InterSpotUpdatePanel settings={settings} />
         </CardContent>
       </Card>
 

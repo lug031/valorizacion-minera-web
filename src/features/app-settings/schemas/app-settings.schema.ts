@@ -15,6 +15,8 @@ export const appSettingsFormSchema = z.object({
 
 export type AppSettingsFormValues = z.infer<typeof appSettingsFormSchema>;
 
+export type InterFetchStatus = "ok" | "failed" | "partial";
+
 export interface AppSettingsRecord {
   id: string;
   settingsKey: string;
@@ -27,6 +29,12 @@ export interface AppSettingsRecord {
   defaultFlete: string | null;
   defaultInterGold: string | null;
   defaultInterSilver: string | null;
+  interGoldSource: string | null;
+  interSilverSource: string | null;
+  interGoldFetchedAt: string | null;
+  interSilverFetchedAt: string | null;
+  interFetchStatus: InterFetchStatus | string | null;
+  interFetchError: string | null;
   updatedAt?: string | null;
 }
 

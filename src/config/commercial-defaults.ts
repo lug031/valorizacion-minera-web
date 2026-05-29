@@ -14,4 +14,16 @@ export const REFERENCE_COMMERCIAL_DEFAULTS = {
   defaultFlete: "22",
   defaultInterGold: "3322.10",
   defaultInterSilver: "0",
+  interGoldSource: "reference",
+  interSilverSource: "reference",
+  interGoldFetchedAt: null as string | null,
+  interSilverFetchedAt: null as string | null,
+  interFetchStatus: null as string | null,
+  interFetchError: null as string | null,
 } as const;
+
+export const INTER_SOURCE_LABELS: Record<string, string> = {
+  manual: "Manual",
+  reference: "Referencia del sistema",
+  "minted-metal-lbma": "Minted Metal (LBMA spot)",
+};

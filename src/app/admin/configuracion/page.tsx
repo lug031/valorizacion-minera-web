@@ -8,7 +8,7 @@ export default function ConfiguracionPage() {
     <AdminShell>
       <AdminHeader
         title="Defaults comerciales"
-        description="Configure los valores base del cotizador: factor, recuperación, RC, costos e intermediación."
+        description="Configure los valores base del cotizador: factor, recuperación, RC, costos e INTER internacional."
       />
       <AppSettingsPageContent />
     </AdminShell>

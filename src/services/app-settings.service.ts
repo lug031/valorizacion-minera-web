@@ -7,6 +7,7 @@ import type {
   AppSettingsFormValues,
   AppSettingsRecord,
 } from "@/features/app-settings/schemas/app-settings.schema";
+import type { InterSpotQuote } from "@/services/inter/inter-spot-types";
 
 function mapRow(row: {
   id: string;
@@ -20,6 +21,12 @@ function mapRow(row: {
   defaultRecPercentSilver?: string | null;
   defaultInterGold?: string | null;
   defaultInterSilver?: string | null;
+  interGoldSource?: string | null;
+  interSilverSource?: string | null;
+  interGoldFetchedAt?: string | null;
+  interSilverFetchedAt?: string | null;
+  interFetchStatus?: string | null;
+  interFetchError?: string | null;
   updatedAt?: string | null;
 }): AppSettingsRecord {
   return {
@@ -34,6 +41,12 @@ function mapRow(row: {
     defaultRecPercentSilver: row.defaultRecPercentSilver ?? null,
     defaultInterGold: row.defaultInterGold ?? null,
     defaultInterSilver: row.defaultInterSilver ?? null,
+    interGoldSource: row.interGoldSource ?? null,
+    interSilverSource: row.interSilverSource ?? null,
+    interGoldFetchedAt: row.interGoldFetchedAt ?? null,
+    interSilverFetchedAt: row.interSilverFetchedAt ?? null,
+    interFetchStatus: row.interFetchStatus ?? null,
+    interFetchError: row.interFetchError ?? null,
     updatedAt: row.updatedAt,
   };
 }
@@ -50,6 +63,10 @@ function formToPayload(values: AppSettingsFormValues) {
     defaultInterGold: values.defaultInterGold,
     defaultInterSilver: values.defaultInterSilver,
   };
+}
+
+function truncateError(message: string, max = 500): string {
+  return message.length > max ? `${message.slice(0, max - 1)}…` : message;
 }
 
 async function findMasterRow(): Promise<AppSettingsRecord | null> {
@@ -97,5 +114,39 @@ export async function restoreReferenceAppSettings(): Promise<AppSettingsRecord> 
   });
   if (errors?.length) throw new Error(errors.map((e) => e.message).join("; "));
   if (!data) throw new Error("No se pudo restaurar la configuración");
+  return mapRow(data);
+}
+
+/** Registra fallo de obtención sin modificar los valores INTER vigentes. */
+export async function recordInterFetchFailure(errorMessage: string): Promise<AppSettingsRecord> {
+  const current = await getMasterAppSettings();
+  const { data, errors } = await adminDataClient.models.AppSettings.update({
+    id: current.id,
+    interFetchStatus: "failed",
+    interFetchError: truncateError(errorMessage),
+  });
+  if (errors?.length) throw new Error(errors.map((e) => e.message).join("; "));
+  if (!data) throw new Error("No se pudo registrar el error de actualización INTER");
+  return mapRow(data);
+}
+
+/** Aplica cotización de mercado confirmada por el administrador. */
+export async function applyInterSpotQuote(quote: InterSpotQuote): Promise<AppSettingsRecord> {
+  const current = await getMasterAppSettings();
+  const fetchedAt = quote.providerFetchedAt;
+
+  const { data, errors } = await adminDataClient.models.AppSettings.update({
+    id: current.id,
+    defaultInterGold: quote.goldUsPerOz,
+    defaultInterSilver: quote.silverUsPerOz,
+    interGoldSource: quote.source,
+    interSilverSource: quote.source,
+    interGoldFetchedAt: fetchedAt,
+    interSilverFetchedAt: fetchedAt,
+    interFetchStatus: "ok",
+    interFetchError: "",
+  });
+  if (errors?.length) throw new Error(errors.map((e) => e.message).join("; "));
+  if (!data) throw new Error("No se pudo guardar INTER desde la fuente externa");
   return mapRow(data);
 }

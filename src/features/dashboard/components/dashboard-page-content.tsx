@@ -37,7 +37,7 @@ const DASHBOARD_MODULES: DashboardModule[] = [
   },
   {
     title: "Defaults comerciales",
-    description: "Factor, REC, RC, consumos, flete e intermediación del cotizador.",
+    description: "Factor, REC, RC, consumos, flete e INTER internacional del cotizador.",
     href: "/admin/configuracion",
     actionLabel: "Administrar defaults",
     staticCount: "1",

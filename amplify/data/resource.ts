@@ -35,6 +35,14 @@ const schema = a.schema({
       defaultRecPercentSilver: a.string(),
       defaultInterGold: a.string(),
       defaultInterSilver: a.string(),
+      /** Fuente del último INTER oro: manual | minted-metal-lbma | reference */
+      interGoldSource: a.string(),
+      interSilverSource: a.string(),
+      interGoldFetchedAt: a.string(),
+      interSilverFetchedAt: a.string(),
+      /** ok | failed | partial */
+      interFetchStatus: a.string(),
+      interFetchError: a.string(),
     })
     .authorization((allow) => [
       allow.groups(["admin"]).to(["create", "read", "update", "delete"]),
