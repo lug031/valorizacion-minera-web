@@ -8,7 +8,7 @@ export default function UsuariosPage() {
     <AdminShell>
       <AdminHeader
         title="Usuarios del panel"
-        description="Staff con acceso web (Cognito): roles admin/supervisor y perfiles de negocio."
+        description="Staff con acceso web (Cognito): roles admin/supervisor. Para la app móvil offline, administre usuarios en Usuarios de campo."
       />
       <StaffUsersPageContent />
     </AdminShell>

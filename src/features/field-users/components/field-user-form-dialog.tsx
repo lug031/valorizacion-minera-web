@@ -23,6 +23,7 @@ import {
 interface Props {
   open: boolean;
   initial?: FieldUserRecord | null;
+  createPreset?: "admin" | "operador";
   readOnly?: boolean;
   saving?: boolean;
   onClose: () => void;
@@ -30,18 +31,19 @@ interface Props {
   onSubmitUpdate: (values: UpdateFieldUserFormValues) => void;
 }
 
-const emptyCreate: CreateFieldUserFormInput = {
+const emptyCreate = (role: "admin" | "operador"): CreateFieldUserFormInput => ({
   username: "",
   displayName: "",
-  role: "operador",
+  role,
   notes: "",
   initialPassword: "",
   isActive: true,
-};
+});
 
 export function FieldUserFormDialog({
   open,
   initial,
+  createPreset = "operador",
   readOnly = false,
   saving = false,
   onClose,
@@ -49,10 +51,11 @@ export function FieldUserFormDialog({
   onSubmitUpdate,
 }: Props) {
   const isEditing = Boolean(initial);
+  const isAdminPreset = createPreset === "admin";
 
   const createForm = useForm<CreateFieldUserFormInput, unknown, CreateFieldUserFormValues>({
     resolver: zodResolver(createFieldUserSchema),
-    defaultValues: emptyCreate,
+    defaultValues: emptyCreate(createPreset),
   });
 
   const updateForm = useForm<UpdateFieldUserFormInput, unknown, UpdateFieldUserFormValues>({
@@ -77,9 +80,9 @@ export function FieldUserFormDialog({
     if (initial) {
       updateForm.reset(recordToUpdateFormValues(initial));
     } else {
-      createForm.reset(emptyCreate);
+      createForm.reset(emptyCreate(createPreset));
     }
-  }, [open, initial, createForm, updateForm]);
+  }, [open, initial, createPreset, createForm, updateForm]);
 
   if (!open) return null;
 
@@ -87,10 +90,19 @@ export function FieldUserFormDialog({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg border bg-background p-6 shadow-lg">
         <h2 className="text-lg font-semibold">
-          {isEditing ? (readOnly ? "Ver usuario de campo" : "Editar usuario de campo") : "Nuevo usuario de campo"}
+          {isEditing
+            ? readOnly
+              ? "Ver usuario de campo"
+              : "Editar usuario de campo"
+            : isAdminPreset
+              ? "Crear mi usuario móvil"
+              : "Nuevo operador de campo"}
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Credenciales para login offline en la app móvil. Sincronice desde el dispositivo administrador.
+          Login offline en la app móvil. El username debe ser distinto del correo del panel web.
+          {isAdminPreset
+            ? " Este usuario podrá sincronizar usuarios y configuración en la app."
+            : " Tras crearlo, un administrador móvil debe sincronizar usuarios en cada teléfono."}
         </p>
 
         {isEditing ? (
@@ -171,9 +183,12 @@ export function FieldUserFormDialog({
                 id="field-username"
                 className="mt-1"
                 autoComplete="off"
-                placeholder="ej. jperez"
+                placeholder={isAdminPreset ? "ej. admin.campo" : "ej. jperez"}
                 {...createForm.register("username")}
               />
+              <p className="mt-1 text-xs text-muted-foreground">
+                No use su correo del panel web. Solo letras, números, punto, guion y guion bajo.
+              </p>
               {createForm.formState.errors.username ? (
                 <p className="mt-1 text-sm text-destructive">
                   {createForm.formState.errors.username.message}
