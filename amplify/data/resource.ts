@@ -1,11 +1,13 @@
 import { type ClientSchema, a, defineData } from "@aws-amplify/backend";
 import { staffUsers } from "../functions/staff-users/resource";
+import { fieldUsers } from "../functions/field-users/resource";
 
 /**
  * Esquema cloud alineado al SQLite móvil.
  * MVP web: maestros + consulta de valorizaciones (sync móvil en fase siguiente).
  */
 const staffRoleEnum = a.enum(["admin", "supervisor"]);
+const fieldRoleEnum = a.enum(["admin", "operador"]);
 
 const schema = a.schema({
   MaquilaRange: a
@@ -158,6 +160,97 @@ const schema = a.schema({
     .returns(a.ref("StaffUser"))
     .authorization((allow) => [allow.groups(["admin"])])
     .handler(a.handler.function(staffUsers)),
+
+  /** Operadores de campo (login móvil offline, sin Cognito). */
+  FieldUser: a
+    .model({
+      username: a.string().required(),
+      displayName: a.string().required(),
+      role: fieldRoleEnum,
+      isActive: a.boolean(),
+      notes: a.string(),
+      metadataJson: a.string(),
+      mobilePasswordHash: a.string().required(),
+    })
+    .authorization((allow) => [
+      allow.groups(["admin"]).to(["create", "read", "update", "delete"]),
+      allow.groups(["supervisor"]).to(["read"]),
+    ]),
+
+  FieldUserRecord: a.customType({
+    id: a.string().required(),
+    username: a.string().required(),
+    displayName: a.string().required(),
+    role: fieldRoleEnum,
+    isActive: a.boolean(),
+    notes: a.string(),
+    metadataJson: a.string(),
+    createdAt: a.string(),
+    updatedAt: a.string(),
+    initialPassword: a.string(),
+  }),
+
+  FieldUserMobileRecord: a.customType({
+    id: a.string().required(),
+    username: a.string().required(),
+    displayName: a.string().required(),
+    role: fieldRoleEnum,
+    isActive: a.boolean(),
+    notes: a.string(),
+    metadataJson: a.string(),
+    mobilePasswordHash: a.string().required(),
+    updatedAt: a.string(),
+  }),
+
+  listFieldUsers: a
+    .query()
+    .returns(a.ref("FieldUserRecord").array())
+    .authorization((allow) => [allow.groups(["admin", "supervisor"])])
+    .handler(a.handler.function(fieldUsers)),
+
+  listFieldUsersForMobile: a
+    .query()
+    .returns(a.ref("FieldUserMobileRecord").array())
+    .authorization((allow) => [allow.groups(["admin"])])
+    .handler(a.handler.function(fieldUsers)),
+
+  createFieldUser: a
+    .mutation()
+    .arguments({
+      username: a.string().required(),
+      displayName: a.string().required(),
+      role: fieldRoleEnum,
+      notes: a.string(),
+      metadataJson: a.string(),
+      initialPassword: a.string(),
+    })
+    .returns(a.ref("FieldUserRecord"))
+    .authorization((allow) => [allow.groups(["admin"])])
+    .handler(a.handler.function(fieldUsers)),
+
+  updateFieldUser: a
+    .mutation()
+    .arguments({
+      id: a.id().required(),
+      displayName: a.string().required(),
+      role: fieldRoleEnum,
+      notes: a.string(),
+      metadataJson: a.string(),
+      isActive: a.boolean().required(),
+    })
+    .returns(a.ref("FieldUserRecord"))
+    .authorization((allow) => [allow.groups(["admin"])])
+    .handler(a.handler.function(fieldUsers)),
+
+  resetFieldUserPassword: a
+    .mutation()
+    .arguments({
+      id: a.id().required(),
+      newPassword: a.string(),
+    })
+    .returns(a.ref("FieldUserRecord"))
+    .authorization((allow) => [allow.groups(["admin"])])
+    .handler(a.handler.function(fieldUsers)),
 
   Valuation: a
     .model({

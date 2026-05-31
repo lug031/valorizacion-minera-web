@@ -76,7 +76,7 @@ const DASHBOARD_MODULES: DashboardModule[] = [
   },
   {
     title: "Usuarios",
-    description: "Administración de accesos, roles y perfiles del panel.",
+    description: "Staff del panel web y operadores móviles (login offline).",
     href: "/admin/usuarios",
     actionLabel: "Administrar usuarios",
     countKey: "staffUsers",

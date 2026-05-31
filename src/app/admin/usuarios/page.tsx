@@ -7,8 +7,8 @@ export default function UsuariosPage() {
   return (
     <AdminShell>
       <AdminHeader
-        title="Usuarios"
-        description="Administre el acceso al panel: roles, estado y perfiles de negocio."
+        title="Usuarios del panel"
+        description="Staff con acceso web (Cognito): roles admin/supervisor y perfiles de negocio."
       />
       <StaffUsersPageContent />
     </AdminShell>
