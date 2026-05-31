@@ -1,6 +1,7 @@
 import { type ClientSchema, a, defineData } from "@aws-amplify/backend";
 import { staffUsers } from "../functions/staff-users/resource";
 import { fieldUsers } from "../functions/field-users/resource";
+import { fieldDevices } from "../functions/field-devices/resource";
 
 /**
  * Esquema cloud alineado al SQLite móvil.
@@ -8,6 +9,7 @@ import { fieldUsers } from "../functions/field-users/resource";
  */
 const staffRoleEnum = a.enum(["admin", "supervisor"]);
 const fieldRoleEnum = a.enum(["admin", "operador"]);
+const fieldDeviceStatusEnum = a.enum(["pending", "enrolled", "revoked"]);
 
 const schema = a.schema({
   MaquilaRange: a
@@ -253,6 +255,196 @@ const schema = a.schema({
     .authorization((allow) => [allow.groups(["admin"])])
     .handler(a.handler.function(fieldUsers)),
 
+  /** Dispositivos móviles vinculados a FieldUser (modelo híbrido). */
+  FieldDevice: a
+    .model({
+      fieldUserId: a.string().required(),
+      deviceFingerprintHash: a.string(),
+      status: fieldDeviceStatusEnum,
+      isBlocked: a.boolean(),
+      validUntil: a.string(),
+      graceDaysOffline: a.integer(),
+      lastSeenAt: a.string(),
+      platform: a.string(),
+      appVersion: a.string(),
+      deviceLabel: a.string(),
+      notes: a.string(),
+      metadataJson: a.string(),
+      enrolledAt: a.string(),
+      revokedAt: a.string(),
+    })
+    .authorization((allow) => [
+      allow.groups(["admin"]).to(["create", "read", "update", "delete"]),
+      allow.groups(["supervisor"]).to(["read"]),
+    ]),
+
+  /** Código de activación de un solo uso (separado de FieldDevice). */
+  EnrollmentToken: a
+    .model({
+      fieldDeviceId: a.string().required(),
+      activationCodeHash: a.string().required(),
+      activationExpiresAt: a.string().required(),
+      activationConsumedAt: a.string(),
+      activationAttemptCount: a.integer(),
+      lastActivationAttemptAt: a.string(),
+    })
+    .authorization((allow) => [
+      allow.groups(["admin"]).to(["create", "read", "update", "delete"]),
+    ]),
+
+  FieldDeviceRecord: a.customType({
+    id: a.string().required(),
+    fieldUserId: a.string().required(),
+    fieldUserUsername: a.string(),
+    fieldUserDisplayName: a.string(),
+    fieldUserRole: fieldRoleEnum,
+    deviceFingerprintHash: a.string(),
+    status: fieldDeviceStatusEnum,
+    isBlocked: a.boolean(),
+    validUntil: a.string(),
+    graceDaysOffline: a.integer(),
+    lastSeenAt: a.string(),
+    platform: a.string(),
+    appVersion: a.string(),
+    deviceLabel: a.string(),
+    notes: a.string(),
+    metadataJson: a.string(),
+    enrolledAt: a.string(),
+    revokedAt: a.string(),
+    hasActiveActivationCode: a.boolean(),
+    activationExpiresAt: a.string(),
+    createdAt: a.string(),
+    updatedAt: a.string(),
+  }),
+
+  EnrollmentCodeResult: a.customType({
+    fieldDeviceId: a.string().required(),
+    enrollmentCode: a.string().required(),
+    expiresAt: a.string().required(),
+    codeLength: a.integer().required(),
+    singleUse: a.boolean().required(),
+  }),
+
+  FieldDeviceEnrollmentDevice: a.customType({
+    id: a.string().required(),
+    fieldUserId: a.string().required(),
+    status: fieldDeviceStatusEnum,
+    deviceFingerprintHash: a.string(),
+    isBlocked: a.boolean(),
+    validUntil: a.string(),
+    graceDaysOffline: a.integer(),
+    enrolledAt: a.string(),
+    platform: a.string(),
+    appVersion: a.string(),
+    deviceLabel: a.string(),
+  }),
+
+  FieldUserEnrollmentRecord: a.customType({
+    id: a.string().required(),
+    username: a.string().required(),
+    displayName: a.string().required(),
+    role: fieldRoleEnum,
+    isActive: a.boolean(),
+    mobilePasswordHash: a.string().required(),
+  }),
+
+  FieldDeviceEnrollmentResult: a.customType({
+    device: a.ref("FieldDeviceEnrollmentDevice").required(),
+    fieldUser: a.ref("FieldUserEnrollmentRecord").required(),
+    serverTime: a.string().required(),
+  }),
+
+  FieldDeviceStatusSyncResult: a.customType({
+    cloudDeviceId: a.string().required(),
+    status: fieldDeviceStatusEnum,
+    isBlocked: a.boolean(),
+    validUntil: a.string(),
+    graceDaysOffline: a.integer(),
+    revokedAt: a.string(),
+    fieldUserIsActive: a.boolean(),
+    lastSeenAt: a.string(),
+    serverTime: a.string().required(),
+  }),
+
+  listManagedFieldDevices: a
+    .query()
+    .returns(a.ref("FieldDeviceRecord").array())
+    .authorization((allow) => [allow.groups(["admin", "supervisor"])])
+    .handler(a.handler.function(fieldDevices)),
+
+  assignManagedFieldDevice: a
+    .mutation()
+    .arguments({
+      fieldUserId: a.string().required(),
+      validUntil: a.string(),
+      notes: a.string(),
+      metadataJson: a.string(),
+      deviceLabel: a.string(),
+    })
+    .returns(a.ref("FieldDeviceRecord"))
+    .authorization((allow) => [allow.groups(["admin"])])
+    .handler(a.handler.function(fieldDevices)),
+
+  generateManagedFieldDeviceEnrollmentCode: a
+    .mutation()
+    .arguments({
+      fieldDeviceId: a.id().required(),
+    })
+    .returns(a.ref("EnrollmentCodeResult"))
+    .authorization((allow) => [allow.groups(["admin"])])
+    .handler(a.handler.function(fieldDevices)),
+
+  enrollFieldDevice: a
+    .mutation()
+    .arguments({
+      enrollmentCode: a.string().required(),
+      username: a.string().required(),
+      password: a.string().required(),
+      deviceFingerprintHash: a.string().required(),
+      fingerprintVersion: a.string().required(),
+      platform: a.string().required(),
+      appVersion: a.string().required(),
+      deviceLabel: a.string(),
+    })
+    .returns(a.ref("FieldDeviceEnrollmentResult"))
+    .authorization((allow) => [allow.publicApiKey()])
+    .handler(a.handler.function(fieldDevices)),
+
+  syncFieldDeviceStatus: a
+    .mutation()
+    .arguments({
+      cloudDeviceId: a.id().required(),
+      deviceFingerprintHash: a.string().required(),
+      platform: a.string(),
+      appVersion: a.string(),
+    })
+    .returns(a.ref("FieldDeviceStatusSyncResult"))
+    .authorization((allow) => [allow.publicApiKey()])
+    .handler(a.handler.function(fieldDevices)),
+
+  updateManagedFieldDevice: a
+    .mutation()
+    .arguments({
+      id: a.id().required(),
+      isBlocked: a.boolean().required(),
+      validUntil: a.string(),
+      notes: a.string(),
+      metadataJson: a.string(),
+      deviceLabel: a.string(),
+    })
+    .returns(a.ref("FieldDeviceRecord"))
+    .authorization((allow) => [allow.groups(["admin"])])
+    .handler(a.handler.function(fieldDevices)),
+
+  revokeManagedFieldDevice: a
+    .mutation()
+    .arguments({
+      id: a.id().required(),
+    })
+    .returns(a.ref("FieldDeviceRecord"))
+    .authorization((allow) => [allow.groups(["admin"])])
+    .handler(a.handler.function(fieldDevices)),
+
   Valuation: a
     .model({
       code: a.string().required(),
@@ -291,5 +483,8 @@ export const data = defineData({
   schema,
   authorizationModes: {
     defaultAuthorizationMode: "userPool",
+    apiKeyAuthorizationMode: {
+      expiresInDays: 365,
+    },
   },
 });

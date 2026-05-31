@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { ClipboardList, Factory, HardHat, Package, Settings, Truck, Users } from "lucide-react";
+import { ClipboardList, Factory, HardHat, Package, Settings, Smartphone, Truck, Users } from "lucide-react";
 
 export type NavItemStatus = "active" | "coming_soon";
 
@@ -22,6 +22,7 @@ export const adminNavigation: AdminNavItem[] = [
   { href: "/admin/valorizaciones", label: "Valorizaciones", icon: ClipboardList, status: "active" },
   { href: "/admin/usuarios", label: "Usuarios panel", icon: Users, status: "active" },
   { href: "/admin/usuarios-campo", label: "Usuarios de campo", icon: HardHat, status: "active" },
+  { href: "/admin/dispositivos", label: "Dispositivos móviles", icon: Smartphone, status: "active" },
 ];
 
 export const adminSubtitle = "Panel de administración";

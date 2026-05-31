@@ -4,17 +4,20 @@ import { auth } from "./auth/resource";
 import { data } from "./data/resource";
 import { staffUsers } from "./functions/staff-users/resource";
 import { fieldUsers } from "./functions/field-users/resource";
+import { fieldDevices } from "./functions/field-devices/resource";
 
 const backend = defineBackend({
   auth,
   data,
   staffUsers,
   fieldUsers,
+  fieldDevices,
 });
 
 const userPool = backend.auth.resources.userPool;
 const staffLambda = backend.staffUsers.resources.lambda;
 const fieldLambda = backend.fieldUsers.resources.lambda;
+const fieldDeviceLambda = backend.fieldDevices.resources.lambda;
 
 /** Permisos Cognito sin enlazar la función al stack auth (evita dependencia circular auth↔data). */
 staffLambda.addToRolePolicy(
@@ -37,6 +40,9 @@ staffLambda.addToRolePolicy(
 
 backend.data.resources.tables.UserProfile.grantReadWriteData(staffLambda);
 backend.data.resources.tables.FieldUser.grantReadWriteData(fieldLambda);
+backend.data.resources.tables.FieldUser.grantReadData(fieldDeviceLambda);
+backend.data.resources.tables.FieldDevice.grantReadWriteData(fieldDeviceLambda);
+backend.data.resources.tables.EnrollmentToken.grantReadWriteData(fieldDeviceLambda);
 
 backend.staffUsers.addEnvironment("AMPLIFY_AUTH_USERPOOL_ID", userPool.userPoolId);
 backend.staffUsers.addEnvironment(
@@ -47,4 +53,17 @@ backend.staffUsers.addEnvironment(
 backend.fieldUsers.addEnvironment(
   "FIELDUSER_TABLE_NAME",
   backend.data.resources.tables.FieldUser.tableName
+);
+
+backend.fieldDevices.addEnvironment(
+  "FIELDDEVICE_TABLE_NAME",
+  backend.data.resources.tables.FieldDevice.tableName
+);
+backend.fieldDevices.addEnvironment(
+  "FIELDUSER_TABLE_NAME",
+  backend.data.resources.tables.FieldUser.tableName
+);
+backend.fieldDevices.addEnvironment(
+  "ENROLLMENTTOKEN_TABLE_NAME",
+  backend.data.resources.tables.EnrollmentToken.tableName
 );
