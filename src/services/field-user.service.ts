@@ -32,7 +32,7 @@ function mapFieldUser(row: {
 }
 
 export async function listFieldUsers(): Promise<FieldUserRecord[]> {
-  const { data, errors } = await adminDataClient.queries.listFieldUsers();
+  const { data, errors } = await adminDataClient.queries.listManagedFieldUsers();
   if (errors?.length) {
     throw new Error(errors.map((e) => e.message).join("; "));
   }
@@ -40,7 +40,7 @@ export async function listFieldUsers(): Promise<FieldUserRecord[]> {
 }
 
 export async function createFieldUser(values: CreateFieldUserFormValues): Promise<FieldUserRecord> {
-  const { data, errors } = await adminDataClient.mutations.createFieldUser({
+  const { data, errors } = await adminDataClient.mutations.createManagedFieldUser({
     username: values.username.trim().toLowerCase(),
     displayName: values.displayName.trim(),
     role: values.role,
@@ -56,7 +56,7 @@ export async function updateFieldUser(
   id: string,
   values: UpdateFieldUserFormValues
 ): Promise<FieldUserRecord> {
-  const { data, errors } = await adminDataClient.mutations.updateFieldUser({
+  const { data, errors } = await adminDataClient.mutations.updateManagedFieldUser({
     id,
     displayName: values.displayName.trim(),
     role: values.role,
@@ -69,7 +69,7 @@ export async function updateFieldUser(
 }
 
 export async function resetFieldUserPassword(id: string): Promise<FieldUserRecord> {
-  const { data, errors } = await adminDataClient.mutations.resetFieldUserPassword({ id });
+  const { data, errors } = await adminDataClient.mutations.resetManagedFieldUserPassword({ id });
   if (errors?.length) throw new Error(errors.map((e) => e.message).join("; "));
   if (!data) throw new Error("No se pudo restablecer la contraseña");
   return mapFieldUser(data);

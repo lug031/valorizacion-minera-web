@@ -202,7 +202,8 @@ const schema = a.schema({
     updatedAt: a.string(),
   }),
 
-  listFieldUsers: a
+  /** Custom ops (no colisionar con listFieldUsers/createFieldUser auto-generados del model). */
+  listManagedFieldUsers: a
     .query()
     .returns(a.ref("FieldUserRecord").array())
     .authorization((allow) => [allow.groups(["admin", "supervisor"])])
@@ -214,7 +215,7 @@ const schema = a.schema({
     .authorization((allow) => [allow.groups(["admin"])])
     .handler(a.handler.function(fieldUsers)),
 
-  createFieldUser: a
+  createManagedFieldUser: a
     .mutation()
     .arguments({
       username: a.string().required(),
@@ -228,7 +229,7 @@ const schema = a.schema({
     .authorization((allow) => [allow.groups(["admin"])])
     .handler(a.handler.function(fieldUsers)),
 
-  updateFieldUser: a
+  updateManagedFieldUser: a
     .mutation()
     .arguments({
       id: a.id().required(),
@@ -242,7 +243,7 @@ const schema = a.schema({
     .authorization((allow) => [allow.groups(["admin"])])
     .handler(a.handler.function(fieldUsers)),
 
-  resetFieldUserPassword: a
+  resetManagedFieldUserPassword: a
     .mutation()
     .arguments({
       id: a.id().required(),

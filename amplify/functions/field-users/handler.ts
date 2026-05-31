@@ -271,15 +271,15 @@ export const handler: AppSyncResolverHandler<
   const fieldEvent = event as FieldHandlerEvent;
   const field = resolveFieldName(fieldEvent);
   switch (field) {
-    case "listFieldUsers":
+    case "listManagedFieldUsers":
       return handleList();
     case "listFieldUsersForMobile":
       return handleListForMobile();
-    case "createFieldUser":
+    case "createManagedFieldUser":
       return handleCreate(fieldEvent);
-    case "updateFieldUser":
+    case "updateManagedFieldUser":
       return handleUpdate(fieldEvent);
-    case "resetFieldUserPassword":
+    case "resetManagedFieldUserPassword":
       return handleResetPassword(fieldEvent);
     default:
       throw new Error(`Operación no soportada: ${field}`);
