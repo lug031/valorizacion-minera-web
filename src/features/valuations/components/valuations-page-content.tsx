@@ -23,9 +23,10 @@ import {
 } from "@/features/valuations/schemas/valuation-filters.schema";
 import { formatApiError } from "@/lib/errors/format-api-error";
 import { formatDisplayDate, formatMoney, syncStatusLabel } from "@/lib/valuation/format";
+import { formatValuationDevice, formatValuationOperator } from "@/lib/valuation/display";
 
 const SYNC_EMPTY_MESSAGE =
-  "Aún no hay cotizaciones registradas en el panel. Las operaciones de campo se guardan hoy en cada teléfono.";
+  "Aún no hay cotizaciones enviadas desde la app móvil. Los operadores deben usar «Enviar cotizaciones al panel» con conexión.";
 
 function syncBadge(status: string | null) {
   const label = syncStatusLabel(status);
@@ -83,15 +84,16 @@ export function ValuationsPageContent() {
                 <TableHead>MAT</TableHead>
                 <TableHead>Proveedor</TableHead>
                 <TableHead>Total compra</TableHead>
+                <TableHead>Operador</TableHead>
+                <TableHead>Dispositivo</TableHead>
                 <TableHead>Estado</TableHead>
-                <TableHead>Registrado por</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {rows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="py-10 text-center">
+                  <TableCell colSpan={9} className="py-10 text-center">
                     {filtersActive ? (
                       <p className="text-muted-foreground">
                         No hay valorizaciones que coincidan con los filtros aplicados.
@@ -120,10 +122,13 @@ export function ValuationsPageContent() {
                         <span className="text-xs text-amber-700">Datos incompletos</span>
                       )}
                     </TableCell>
-                    <TableCell>{syncBadge(row.syncStatus)}</TableCell>
-                    <TableCell className="max-w-[120px] truncate text-xs text-muted-foreground">
-                      {row.createdByUserId ?? "—"}
+                    <TableCell className="max-w-[140px] truncate">
+                      {formatValuationOperator(row)}
                     </TableCell>
+                    <TableCell className="max-w-[120px] truncate text-xs text-muted-foreground">
+                      {formatValuationDevice(row)}
+                    </TableCell>
+                    <TableCell>{syncBadge(row.syncStatus)}</TableCell>
                     <TableCell className="text-right">
                       <Link href={`/admin/valorizaciones/${row.id}`}>
                         <Button variant="ghost" size="sm">

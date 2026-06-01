@@ -10,6 +10,7 @@ import { useValuation } from "@/features/valuations/hooks/use-valuations";
 import { tryParseSnapshot } from "@/lib/valuation/try-parse-snapshot";
 import { formatApiError } from "@/lib/errors/format-api-error";
 import { formatDisplayDate, formatDisplayDateTime, syncStatusLabel } from "@/lib/valuation/format";
+import { formatValuationDevice, formatValuationOperator } from "@/lib/valuation/display";
 
 interface Props {
   id: string;
@@ -75,12 +76,16 @@ export function ValuationDetailContent({ id }: Props) {
             <p className="font-medium">{data.formulaVersion}</p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">Referencia de origen</p>
-            <p className="font-medium font-mono text-xs">{data.mobileId ?? "—"}</p>
+            <p className="text-xs text-muted-foreground">Operador</p>
+            <p className="font-medium">{formatValuationOperator(data)}</p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">Registrado por</p>
-            <p className="font-medium">{data.createdByUserId ?? "—"}</p>
+            <p className="text-xs text-muted-foreground">Dispositivo</p>
+            <p className="font-medium">{formatValuationDevice(data)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Referencia móvil</p>
+            <p className="font-medium font-mono text-xs">{data.mobileId ?? "—"}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Registrado</p>

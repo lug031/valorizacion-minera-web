@@ -24,6 +24,12 @@ function mapRow(row: {
   syncStatus?: string | null;
   mobileId?: string | null;
   createdByUserId?: string | null;
+  createdByUsername?: string | null;
+  createdByDisplayName?: string | null;
+  fieldDeviceId?: string | null;
+  fieldDeviceLabel?: string | null;
+  sourceCreatedAt?: string | null;
+  sourceUpdatedAt?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
 }): ValuationRecord {
@@ -39,6 +45,12 @@ function mapRow(row: {
     syncStatus: row.syncStatus ?? null,
     mobileId: row.mobileId ?? null,
     createdByUserId: row.createdByUserId ?? null,
+    createdByUsername: row.createdByUsername ?? null,
+    createdByDisplayName: row.createdByDisplayName ?? null,
+    fieldDeviceId: row.fieldDeviceId ?? null,
+    fieldDeviceLabel: row.fieldDeviceLabel ?? null,
+    sourceCreatedAt: row.sourceCreatedAt ?? null,
+    sourceUpdatedAt: row.sourceUpdatedAt ?? null,
     createdAt: row.createdAt ?? null,
     updatedAt: row.updatedAt ?? null,
   };

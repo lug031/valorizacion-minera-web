@@ -2,6 +2,7 @@ import { type ClientSchema, a, defineData } from "@aws-amplify/backend";
 import { staffUsers } from "../functions/staff-users/resource";
 import { fieldUsers } from "../functions/field-users/resource";
 import { fieldDevices } from "../functions/field-devices/resource";
+import { fieldValuations } from "../functions/field-valuations/resource";
 
 /**
  * Esquema cloud alineado al SQLite móvil.
@@ -457,11 +458,51 @@ const schema = a.schema({
       syncStatus: a.string(),
       mobileId: a.string(),
       createdByUserId: a.string(),
+      createdByUsername: a.string(),
+      createdByDisplayName: a.string(),
+      fieldDeviceId: a.string(),
+      fieldDeviceLabel: a.string(),
+      sourceCreatedAt: a.string(),
+      sourceUpdatedAt: a.string(),
     })
     .authorization((allow) => [
       allow.groups(["supervisor"]).to(["read"]),
       allow.groups(["admin"]).to(["create", "read", "update", "delete"]),
     ]),
+
+  PushMobileValuationResult: a.customType({
+    cloudValuationId: a.string().required(),
+    mobileId: a.string().required(),
+    syncStatus: a.string().required(),
+    alreadyExisted: a.boolean().required(),
+    serverTime: a.string().required(),
+  }),
+
+  pushMobileValuation: a
+    .mutation()
+    .arguments({
+      mobileId: a.string().required(),
+      code: a.string().required(),
+      fecha: a.string().required(),
+      materialTypeCode: a.string().required(),
+      providerName: a.string(),
+      observaciones: a.string(),
+      formulaVersion: a.string().required(),
+      snapshotJson: a.string().required(),
+      createdByFieldUserId: a.string().required(),
+      createdByUsername: a.string().required(),
+      createdByDisplayName: a.string(),
+      sourceCreatedAt: a.string().required(),
+      sourceUpdatedAt: a.string().required(),
+      cloudDeviceId: a.id().required(),
+      deviceFingerprintHash: a.string().required(),
+      fieldDeviceLabel: a.string(),
+      platform: a.string(),
+      appVersion: a.string(),
+    })
+    .returns(a.ref("PushMobileValuationResult"))
+    .authorization((allow) => [allow.publicApiKey()])
+    .handler(a.handler.function(fieldValuations)),
 
   AuditLog: a
     .model({
