@@ -23,7 +23,7 @@ import {
 interface Props {
   open: boolean;
   initial?: FieldUserRecord | null;
-  createPreset?: "admin" | "operador";
+  defaultCreateRole?: "admin" | "operador";
   readOnly?: boolean;
   saving?: boolean;
   onClose: () => void;
@@ -43,7 +43,7 @@ const emptyCreate = (role: "admin" | "operador"): CreateFieldUserFormInput => ({
 export function FieldUserFormDialog({
   open,
   initial,
-  createPreset = "operador",
+  defaultCreateRole = "operador",
   readOnly = false,
   saving = false,
   onClose,
@@ -51,12 +51,13 @@ export function FieldUserFormDialog({
   onSubmitUpdate,
 }: Props) {
   const isEditing = Boolean(initial);
-  const isAdminPreset = createPreset === "admin";
 
   const createForm = useForm<CreateFieldUserFormInput, unknown, CreateFieldUserFormValues>({
     resolver: zodResolver(createFieldUserSchema),
-    defaultValues: emptyCreate(createPreset),
+    defaultValues: emptyCreate(defaultCreateRole),
   });
+
+  const createRole = createForm.watch("role");
 
   const updateForm = useForm<UpdateFieldUserFormInput, unknown, UpdateFieldUserFormValues>({
     resolver: zodResolver(updateFieldUserSchema),
@@ -80,9 +81,9 @@ export function FieldUserFormDialog({
     if (initial) {
       updateForm.reset(recordToUpdateFormValues(initial));
     } else {
-      createForm.reset(emptyCreate(createPreset));
+      createForm.reset(emptyCreate(defaultCreateRole));
     }
-  }, [open, initial, createPreset, createForm, updateForm]);
+  }, [open, initial, defaultCreateRole, createForm, updateForm]);
 
   if (!open) return null;
 
@@ -94,15 +95,15 @@ export function FieldUserFormDialog({
             ? readOnly
               ? "Ver usuario de campo"
               : "Editar usuario de campo"
-            : isAdminPreset
-              ? "Administrador móvil"
-              : "Operador de campo"}
+            : "Nuevo usuario de campo"}
         </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {isAdminPreset
-            ? "Este usuario administrará la app en el teléfono y podrá actualizar usuarios y configuración."
-            : "El operador usará este usuario para ingresar en la app. Use un nombre distinto de su correo de administración."}
-        </p>
+        {!isEditing ? (
+          <p className="mt-1 text-sm text-muted-foreground">
+            {createRole === "admin"
+              ? "Administrador móvil: puede actualizar usuarios y configuración en la app (hasta 2 teléfonos)."
+              : "Operador de campo: ingresa en la app para trabajar en campo (1 teléfono)."}
+          </p>
+        ) : null}
 
         {isEditing ? (
           <form
@@ -182,7 +183,7 @@ export function FieldUserFormDialog({
                 id="field-username"
                 className="mt-1"
                 autoComplete="off"
-                placeholder={isAdminPreset ? "ej. admin.campo" : "ej. jperez"}
+                placeholder={createRole === "admin" ? "ej. admin.campo" : "ej. jperez"}
                 {...createForm.register("username")}
               />
               <p className="mt-1 text-xs text-muted-foreground">
@@ -207,8 +208,7 @@ export function FieldUserFormDialog({
               <Label htmlFor="field-create-role">Rol operativo</Label>
               <select
                 id="field-create-role"
-                className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-70"
-                disabled
+                className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 {...createForm.register("role")}
               >
                 {FIELD_ROLE_OPTIONS.map((opt) => (
@@ -217,6 +217,9 @@ export function FieldUserFormDialog({
                   </option>
                 ))}
               </select>
+              <p className="mt-1 text-xs text-muted-foreground">
+                El administrador gestiona usuarios en la app; el operador solo cotiza en campo.
+              </p>
             </div>
             <div>
               <Label htmlFor="field-create-notes">Observaciones</Label>

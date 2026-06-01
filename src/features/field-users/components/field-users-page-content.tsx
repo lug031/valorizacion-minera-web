@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { HardHat, KeyRound, Pencil, Plus, UserPlus } from "lucide-react";
+import { HardHat, KeyRound, Pencil, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -50,7 +50,7 @@ export function FieldUsersPageContent() {
   const { data, isLoading, error } = useFieldUsers();
   const { create, update, resetPassword } = useFieldUserMutations();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [createPreset, setCreatePreset] = useState<"admin" | "operador">("operador");
+  const [createDefaultRole, setCreateDefaultRole] = useState<"admin" | "operador">("operador");
   const [editing, setEditing] = useState<FieldUserRecord | null>(null);
   const [readOnly, setReadOnly] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -66,9 +66,9 @@ export function FieldUsersPageContent() {
     [data]
   );
 
-  const openCreate = (preset: "admin" | "operador") => {
+  const openCreate = () => {
     setEditing(null);
-    setCreatePreset(preset);
+    setCreateDefaultRole(hasMobileAdmin ? "operador" : "admin");
     setReadOnly(false);
     setFormError(null);
     setPasswordNotice(null);
@@ -172,21 +172,10 @@ export function FieldUsersPageContent() {
           la app.
         </p>
         {canWrite ? (
-          <div className="flex flex-col items-end gap-1">
-            <div className="flex flex-wrap gap-2">
-              <Button variant={hasMobileAdmin ? "outline" : "default"} onClick={() => openCreate("admin")}>
-                <UserPlus className="h-4 w-4" />
-                Administrador móvil
-              </Button>
-              <Button variant="outline" onClick={() => openCreate("operador")}>
-                <Plus className="h-4 w-4" />
-                Operador de campo
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              El administrador gestiona usuarios en la app; el operador solo trabaja en campo.
-            </p>
-          </div>
+          <Button onClick={openCreate}>
+            <Plus className="h-4 w-4" />
+            Nuevo usuario
+          </Button>
         ) : null}
       </div>
 
@@ -219,7 +208,7 @@ export function FieldUsersPageContent() {
                 <TableRow>
                   <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
                     <HardHat className="mx-auto mb-2 h-8 w-8 opacity-40" />
-                    No hay usuarios de campo. {canWrite ? "Empiece creando un administrador móvil." : ""}
+                    No hay usuarios de campo. {canWrite ? "Use «Nuevo usuario» para empezar." : ""}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -275,7 +264,7 @@ export function FieldUsersPageContent() {
       <FieldUserFormDialog
         open={dialogOpen}
         initial={editing}
-        createPreset={editing ? undefined : createPreset}
+        defaultCreateRole={editing ? undefined : createDefaultRole}
         readOnly={readOnly}
         saving={create.isPending || update.isPending}
         onClose={() => setDialogOpen(false)}
