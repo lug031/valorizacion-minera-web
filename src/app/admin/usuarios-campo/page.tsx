@@ -8,7 +8,7 @@ export default function UsuariosCampoPage() {
     <AdminShell>
       <AdminHeader
         title="Usuarios de campo"
-        description="Operadores y administradores que ingresan en la app móvil."
+        description="Cuentas para ingresar en la app móvil. El operador usa un nombre de usuario corto (no el correo de este panel)."
       />
       <FieldUsersPageContent />
     </AdminShell>

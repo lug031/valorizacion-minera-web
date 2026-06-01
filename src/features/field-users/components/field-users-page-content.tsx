@@ -147,35 +147,18 @@ export function FieldUsersPageContent() {
 
   return (
     <div className="p-6">
-      <div className="mb-4 rounded-md border border-sky-200 bg-sky-50 p-4 text-sm text-sky-950">
-        <p className="font-medium">Usuarios de la app móvil</p>
-        <p className="mt-1 text-sky-900/90">
-          Son distintos del correo con el que entra a este panel. Use un nombre corto para que el operador
-          ingrese en el teléfono (por ejemplo, <strong>jperez</strong>).
-        </p>
-      </div>
-
-      {!isLoading && canWrite && !hasMobileAdmin ? (
-        <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
-          <p className="font-medium">Primeros pasos</p>
-          <ol className="mt-2 list-decimal space-y-1 pl-5 text-amber-900/90">
-            <li>Cree un <strong>administrador móvil</strong> (su usuario en la app).</li>
-            <li>Cree los <strong>operadores de campo</strong> de su equipo.</li>
-            <li>En cada teléfono, actualice usuarios desde Configuración.</li>
-          </ol>
-        </div>
-      ) : null}
-
       <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
-        <p className="max-w-2xl text-sm text-muted-foreground">
-          Si cambia contraseñas o desactiva usuarios, actualice los teléfonos afectados desde Configuración en
-          la app.
-        </p>
         {canWrite ? (
-          <Button onClick={openCreate}>
-            <Plus className="h-4 w-4" />
-            Nuevo usuario
-          </Button>
+          <>
+            <p className="max-w-2xl text-sm text-muted-foreground">
+              Si restablece una contraseña o desactiva un usuario, en cada teléfono afectado ejecute
+              «Actualizar usuarios de campo» desde Configuración en la app.
+            </p>
+            <Button onClick={openCreate}>
+              <Plus className="h-4 w-4" />
+              Nuevo usuario
+            </Button>
+          </>
         ) : null}
       </div>
 
