@@ -82,6 +82,26 @@ function buildAmplifyFilter(filters: ValuationFilters) {
   const sync = filters.syncStatus?.trim();
   if (sync) parts.push({ syncStatus: { eq: sync } });
 
+  const operator = filters.operator?.trim();
+  if (operator) {
+    parts.push({
+      or: [
+        { createdByUsername: { contains: operator } },
+        { createdByDisplayName: { contains: operator } },
+      ],
+    });
+  }
+
+  const device = filters.device?.trim();
+  if (device) {
+    parts.push({
+      or: [
+        { fieldDeviceLabel: { contains: device } },
+        { fieldDeviceId: { contains: device } },
+      ],
+    });
+  }
+
   const from = filters.fechaFrom?.trim();
   const to = filters.fechaTo?.trim();
   if (from && to) {

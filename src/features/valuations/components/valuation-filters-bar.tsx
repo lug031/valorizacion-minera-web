@@ -25,7 +25,7 @@ export function ValuationFiltersBar({ filters, onChange, onApply, onClear }: Pro
   return (
     <div className="mb-4 rounded-lg border bg-card p-4">
       <p className="mb-3 text-sm font-medium text-primary">Filtros de búsqueda</p>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-8">
         <div className="space-y-2">
           <Label htmlFor="filter-code">Código</Label>
           <Input
@@ -85,6 +85,24 @@ export function ValuationFiltersBar({ filters, onChange, onApply, onClear }: Pro
               </option>
             ))}
           </select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="filter-operator">Operador</Label>
+          <Input
+            id="filter-operator"
+            placeholder="Usuario o nombre"
+            value={filters.operator ?? ""}
+            onChange={(e) => set({ operator: e.target.value })}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="filter-device">Dispositivo</Label>
+          <Input
+            id="filter-device"
+            placeholder="Etiqueta o ID"
+            value={filters.device ?? ""}
+            onChange={(e) => set({ device: e.target.value })}
+          />
         </div>
       </div>
       <div className="mt-4 flex gap-2">

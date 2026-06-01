@@ -7,6 +7,8 @@ export const valuationFiltersSchema = z.object({
   materialTypeCode: z.string().optional(),
   providerName: z.string().optional(),
   syncStatus: z.string().optional(),
+  operator: z.string().optional(),
+  device: z.string().optional(),
 });
 
 export type ValuationFilters = z.infer<typeof valuationFiltersSchema>;
@@ -18,6 +20,8 @@ export const emptyValuationFilters: ValuationFilters = {
   materialTypeCode: "",
   providerName: "",
   syncStatus: "",
+  operator: "",
+  device: "",
 };
 
 export function hasActiveValuationFilters(filters: ValuationFilters): boolean {
@@ -27,7 +31,9 @@ export function hasActiveValuationFilters(filters: ValuationFilters): boolean {
       filters.fechaTo?.trim() ||
       filters.materialTypeCode?.trim() ||
       filters.providerName?.trim() ||
-      filters.syncStatus?.trim()
+      filters.syncStatus?.trim() ||
+      filters.operator?.trim() ||
+      filters.device?.trim()
   );
 }
 
