@@ -25,7 +25,7 @@ import { formatApiError } from "@/lib/errors/format-api-error";
 import { formatDisplayDate, formatMoney, syncStatusLabel } from "@/lib/valuation/format";
 
 const SYNC_EMPTY_MESSAGE =
-  "Las valorizaciones aparecerán aquí cuando se active la sincronización con operaciones de campo.";
+  "Aún no hay cotizaciones registradas en el panel. Las operaciones de campo se guardan hoy en cada teléfono.";
 
 function syncBadge(status: string | null) {
   const label = syncStatusLabel(status);

@@ -442,19 +442,6 @@ async function recordFailedActivationAttempt(token: EnrollmentTokenItem, nowIso:
   );
 }
 
-function logEnrollFieldDevice(
-  stage: string,
-  payload: Record<string, unknown>
-): void {
-  console.info(
-    JSON.stringify({
-      event: "enrollFieldDevice",
-      stage,
-      ...payload,
-    })
-  );
-}
-
 async function handleEnroll(event: FieldHandlerEvent): Promise<FieldDeviceEnrollmentResult> {
   const args = event.arguments;
   const enrollmentCodeRaw = String(args.enrollmentCode ?? "");
@@ -497,14 +484,6 @@ async function handleEnroll(event: FieldHandlerEvent): Promise<FieldDeviceEnroll
   if (!token) {
     throwFieldDeviceError("INVALID_ENROLLMENT_CODE", "Código de activación inválido o expirado");
   }
-  logEnrollFieldDevice("token_found", {
-    tokenId: token.id,
-    fieldDeviceId: token.fieldDeviceId,
-    tokenConsumed: Boolean(token.activationConsumedAt),
-    activationAttemptCount: token.activationAttemptCount ?? 0,
-    activationExpiresAt: token.activationExpiresAt,
-  });
-
   if (token.activationConsumedAt) {
     throwFieldDeviceError("ENROLLMENT_CODE_USED", "Este código ya fue utilizado");
   }
@@ -536,35 +515,12 @@ async function handleEnroll(event: FieldHandlerEvent): Promise<FieldDeviceEnroll
     await recordFailedActivationAttempt(token, nowIso);
     throwFieldDeviceError("INVALID_CREDENTIALS", "Usuario o contraseña incorrectos");
   }
-  logEnrollFieldDevice("credentials_validated", {
-    tokenId: token.id,
-    fieldDeviceId: token.fieldDeviceId,
-    fieldUserId: fieldUser.id,
-    username: fieldUser.username,
-  });
-
   const devices = await scanFieldDevices();
   assertDeviceQuota(fieldUser, devices, device.id);
   assertFingerprintUnique(devices, deviceFingerprintHash, device.id);
-  logEnrollFieldDevice("fingerprint_validated", {
-    tokenId: token.id,
-    fieldDeviceId: token.fieldDeviceId,
-    deviceId: device.id,
-    fingerprintVersion,
-    platform,
-    appVersion,
-  });
-
   const mergedDeviceLabel = deviceLabelArg ?? device.deviceLabel ?? null;
 
   try {
-    logEnrollFieldDevice("before_transact_write", {
-      tokenId: token.id,
-      fieldDeviceId: token.fieldDeviceId,
-      deviceId: device.id,
-      nowIso,
-      targetStatus: "enrolled",
-    });
     await doc.send(
       new TransactWriteCommand({
         TransactItems: [
@@ -610,20 +566,7 @@ async function handleEnroll(event: FieldHandlerEvent): Promise<FieldDeviceEnroll
         ],
       })
     );
-    logEnrollFieldDevice("after_transact_write", {
-      tokenId: token.id,
-      fieldDeviceId: token.fieldDeviceId,
-      deviceId: device.id,
-      result: "ok",
-    });
   } catch (error) {
-    logEnrollFieldDevice("transact_write_error", {
-      tokenId: token.id,
-      fieldDeviceId: token.fieldDeviceId,
-      deviceId: device.id,
-      errorName: error instanceof Error ? error.name : "UnknownError",
-      errorMessage: error instanceof Error ? error.message : String(error),
-    });
     if (error instanceof Error && error.name === "TransactionCanceledException") {
       throwFieldDeviceError(
         "DEVICE_NOT_PENDING",
@@ -644,14 +587,6 @@ async function handleEnroll(event: FieldHandlerEvent): Promise<FieldDeviceEnroll
     lastSeenAt: nowIso,
     updatedAt: nowIso,
   };
-
-  logEnrollFieldDevice("final_response", {
-    tokenId: token.id,
-    fieldDeviceId: token.fieldDeviceId,
-    deviceId: enrolledDevice.id,
-    status: "enrolled",
-    serverTime: nowIso,
-  });
 
   return {
     device: {

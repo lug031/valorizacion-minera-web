@@ -65,7 +65,7 @@ export function InterSpotUpdatePanel({ settings }: Props) {
         <CardTitle className="text-base">Actualización automática</CardTitle>
         <CardDescription>
           Obtiene referencia LBMA (Minted Metal) desde el servidor. La app móvil seguirá
-          recibiendo estos valores por sincronización.
+          recibiendo estos valores desde la app móvil.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

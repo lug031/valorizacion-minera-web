@@ -36,6 +36,6 @@ export function syncStatusLabel(status: string | null | undefined): string {
     case "error":
       return "Con error";
     default:
-      return status;
+      return "Pendiente de registro";
   }
 }
