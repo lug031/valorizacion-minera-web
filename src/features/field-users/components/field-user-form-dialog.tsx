@@ -95,14 +95,13 @@ export function FieldUserFormDialog({
               ? "Ver usuario de campo"
               : "Editar usuario de campo"
             : isAdminPreset
-              ? "Crear mi usuario móvil"
-              : "Nuevo operador de campo"}
+              ? "Administrador móvil"
+              : "Operador de campo"}
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Login offline en la app móvil. El username debe ser distinto del correo del panel web.
           {isAdminPreset
-            ? " Este usuario podrá sincronizar usuarios y configuración en la app."
-            : " Tras crearlo, un administrador móvil debe sincronizar usuarios en cada teléfono."}
+            ? "Este usuario administrará la app en el teléfono y podrá actualizar usuarios y configuración."
+            : "El operador usará este usuario para ingresar en la app. Use un nombre distinto de su correo de administración."}
         </p>
 
         {isEditing ? (
@@ -111,7 +110,7 @@ export function FieldUserFormDialog({
             onSubmit={updateForm.handleSubmit((values) => onSubmitUpdate(values))}
           >
             <div>
-              <Label>Username</Label>
+              <Label>Usuario de acceso</Label>
               <Input value={initial?.username ?? ""} disabled className="mt-1" />
             </div>
             <div>
@@ -178,7 +177,7 @@ export function FieldUserFormDialog({
             onSubmit={createForm.handleSubmit((values) => onSubmitCreate(values))}
           >
             <div>
-              <Label htmlFor="field-username">Username</Label>
+              <Label htmlFor="field-username">Usuario de acceso</Label>
               <Input
                 id="field-username"
                 className="mt-1"
@@ -187,7 +186,7 @@ export function FieldUserFormDialog({
                 {...createForm.register("username")}
               />
               <p className="mt-1 text-xs text-muted-foreground">
-                No use su correo del panel web. Solo letras, números, punto, guion y guion bajo.
+                No use su correo de administración. Solo letras, números, punto, guion y guion bajo.
               </p>
               {createForm.formState.errors.username ? (
                 <p className="mt-1 text-sm text-destructive">
@@ -208,7 +207,8 @@ export function FieldUserFormDialog({
               <Label htmlFor="field-create-role">Rol operativo</Label>
               <select
                 id="field-create-role"
-                className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-70"
+                disabled
                 {...createForm.register("role")}
               >
                 {FIELD_ROLE_OPTIONS.map((opt) => (

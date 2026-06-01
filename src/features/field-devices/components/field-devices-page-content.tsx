@@ -49,12 +49,6 @@ function formatDateOnly(value: string | null | undefined) {
   }
 }
 
-function fingerprintPreview(hash: string | null | undefined): string {
-  if (!hash) return "Pendiente";
-  if (hash.length <= 12) return hash;
-  return `${hash.slice(0, 8)}…${hash.slice(-4)}`;
-}
-
 function activationCodeLabel(row: FieldDeviceRecord): string {
   if (row.status !== "pending") return "—";
   if (row.hasActiveActivationCode && row.activationExpiresAt) {
@@ -126,7 +120,7 @@ export function FieldDevicesPageContent() {
       setDialogOpen(false);
       setVisibleCount(LIST_PAGE_SIZE);
       setAssignNotice(
-        `Cupo asignado a ${created.fieldUserDisplayName ?? created.fieldUserUsername ?? "usuario"}. Genere un código de activación para el teléfono.`
+        `Teléfono reservado para ${created.fieldUserDisplayName ?? created.fieldUserUsername ?? "el usuario"}. Genere y envíe el código de activación.`
       );
     } catch (e) {
       setFormError(formatApiError(e, "No se pudo asignar el dispositivo."));
@@ -165,17 +159,17 @@ export function FieldDevicesPageContent() {
       await revoke.mutateAsync(row.id);
       setRevokeTarget(null);
     } catch (e) {
-      setFormError(formatApiError(e, "No se pudo revocar el dispositivo."));
+      setFormError(formatApiError(e, "No se pudo retirar el teléfono."));
     }
   };
 
   return (
     <div className="p-6">
       <div className="mb-4 rounded-md border border-sky-200 bg-sky-50 p-4 text-sm text-sky-950">
-        <p className="font-medium">Cómo activar un teléfono</p>
+        <p className="font-medium">Autorizar teléfonos</p>
         <p className="mt-1 text-sky-900/90">
-          Flujo: <strong>Asignar teléfono</strong> → <strong>Generar código</strong> → el operador activa en
-          la app. Código de un solo uso, válido 72 h. Operador: 1 teléfono; administrador móvil: 2.
+          Asigne un teléfono, genere un código y envíelo al operador. El código dura 72 horas y solo sirve
+          una vez. Cada operador puede tener 1 teléfono; cada administrador móvil, hasta 2.
         </p>
       </div>
 
@@ -191,8 +185,8 @@ export function FieldDevicesPageContent() {
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
         <p className="max-w-2xl text-sm text-muted-foreground">
-          Regenerar código invalida el anterior. Retirar un teléfono libera el cupo. Cambio de teléfono:
-          retirar → asignar → generar código nuevo.
+          Un código nuevo invalida el anterior. Si retira un teléfono, puede asignar otro y generar un código
+          nuevo.
         </p>
         {canWrite ? (
           <Button onClick={openAssign}>
@@ -224,8 +218,7 @@ export function FieldDevicesPageContent() {
                 <TableHead>Rol</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead>Código</TableHead>
-                <TableHead>Identificador</TableHead>
-                <TableHead>Bloqueado</TableHead>
+                <TableHead>Suspendido</TableHead>
                 <TableHead>Válido hasta</TableHead>
                 <TableHead>Última conexión</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
@@ -234,10 +227,10 @@ export function FieldDevicesPageContent() {
             <TableBody>
               {rows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="py-8 text-center text-muted-foreground">
+                  <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
                     <Smartphone className="mx-auto mb-2 h-8 w-8 opacity-40" />
                     No hay teléfonos registrados.
-                    {canWrite ? " Use «Asignar teléfono» para reservar un cupo." : ""}
+                    {canWrite ? " Use «Asignar teléfono» para empezar." : ""}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -258,7 +251,7 @@ export function FieldDevicesPageContent() {
                         ) : null}
                         {row.status !== "revoked" ? (
                           <div className="mt-1 text-xs text-muted-foreground">
-                            Cupos: {activeCount}/{maxDevices}
+                            Teléfonos: {activeCount}/{maxDevices}
                           </div>
                         ) : null}
                       </TableCell>
@@ -288,9 +281,6 @@ export function FieldDevicesPageContent() {
                         ) : (
                           <span className="text-muted-foreground">—</span>
                         )}
-                      </TableCell>
-                      <TableCell className="font-mono text-xs">
-                        {fingerprintPreview(row.deviceFingerprintHash)}
                       </TableCell>
                       <TableCell>
                         {row.isBlocked ? (
@@ -371,7 +361,7 @@ export function FieldDevicesPageContent() {
       <ConfirmDialog
         open={Boolean(revokeTarget)}
         title="Retirar teléfono"
-        description={`¿Confirma retirar el teléfono de ${revokeTarget?.fieldUserDisplayName ?? revokeTarget?.fieldUserUsername ?? "este usuario"}? Libera el cupo y anula códigos pendientes.`}
+        description={`¿Confirma retirar el teléfono de ${revokeTarget?.fieldUserDisplayName ?? revokeTarget?.fieldUserUsername ?? "este usuario"}? Se anularán los códigos pendientes.`}
         confirmLabel="Retirar"
         destructive
         loading={revoke.isPending}

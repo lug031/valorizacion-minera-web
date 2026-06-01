@@ -8,7 +8,7 @@ export default function UsuariosCampoPage() {
     <AdminShell>
       <AdminHeader
         title="Usuarios de campo"
-        description="Operadores y administradores móviles con login offline. Sincronice desde la app (perfil admin)."
+        description="Operadores y administradores que ingresan en la app móvil."
       />
       <FieldUsersPageContent />
     </AdminShell>

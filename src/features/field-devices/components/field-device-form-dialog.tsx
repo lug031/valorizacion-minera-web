@@ -82,8 +82,8 @@ export function FieldDeviceFormDialog({
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
           {mode === "assign"
-            ? "Reserva un cupo para activación. Luego genere un código para el operador."
-            : "El bloqueo y la fecha de validez se aplican en la app del operador."}
+            ? "Seleccione el operador y asigne su teléfono. Luego genere el código de activación."
+            : "Puede suspender el teléfono o ajustar la fecha de validez."}
         </p>
 
         {mode === "assign" ? (
@@ -175,18 +175,14 @@ export function FieldDeviceFormDialog({
                         ? "Retirado"
                         : (initial.status ?? "—")}
                 </p>
-                <p className="mt-1 break-all">
-                  <span className="text-muted-foreground">Identificador:</span>{" "}
-                  {initial.deviceFingerprintHash ?? "Pendiente de activación"}
-                </p>
                 {initial.hasActiveActivationCode && initial.activationExpiresAt ? (
                   <p className="mt-1 text-amber-800">
-                    Código activo hasta{" "}
+                    Hay un código vigente hasta{" "}
                     {new Date(initial.activationExpiresAt).toLocaleString("es-PE", {
                       dateStyle: "short",
                       timeStyle: "short",
                     })}
-                    . Regenerar invalida el anterior.
+                    .
                   </p>
                 ) : null}
               </div>

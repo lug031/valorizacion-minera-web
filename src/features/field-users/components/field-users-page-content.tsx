@@ -17,6 +17,10 @@ import {
 } from "@/components/ui/table";
 import { useCanWriteAdmin } from "@/providers/auth-provider";
 import { FieldUserFormDialog } from "@/features/field-users/components/field-user-form-dialog";
+import {
+  FieldUserPasswordNotice,
+  type FieldUserPasswordNoticeData,
+} from "@/features/field-users/components/field-user-password-notice";
 import { useFieldUserMutations, useFieldUsers } from "@/features/field-users/hooks/use-field-users";
 import {
   fieldRoleLabel,
@@ -37,15 +41,8 @@ function formatDate(value: string | null | undefined) {
   }
 }
 
-function buildCreatedUserNotice(username: string, password: string): string {
-  return [
-    `Usuario «${username}» creado. Contraseña inicial: ${password}.`,
-    "En la app móvil (como administrador):",
-    "1) Sincronizar usuarios de campo",
-    "2) Cerrar sesión",
-    `3) Iniciar sesión con el username «${username}» (no use su correo del panel web).`,
-    "En cada teléfono nuevo del equipo, repita el paso 1 antes de que un operador entre.",
-  ].join(" ");
+function buildCreatedUserNotice(username: string, password: string): FieldUserPasswordNoticeData {
+  return { username, password, kind: "created" };
 }
 
 export function FieldUsersPageContent() {
@@ -57,7 +54,7 @@ export function FieldUsersPageContent() {
   const [editing, setEditing] = useState<FieldUserRecord | null>(null);
   const [readOnly, setReadOnly] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [passwordNotice, setPasswordNotice] = useState<string | null>(null);
+  const [passwordNotice, setPasswordNotice] = useState<FieldUserPasswordNoticeData | null>(null);
   const [visibleCount, setVisibleCount] = useState(LIST_PAGE_SIZE);
   const [deactivateTarget, setDeactivateTarget] = useState<FieldUserRecord | null>(null);
 
@@ -137,12 +134,11 @@ export function FieldUsersPageContent() {
     try {
       const result = await resetPassword.mutateAsync(row.id);
       if (result.initialPassword) {
-        setPasswordNotice(
-          [
-            `Nueva contraseña para «${result.username}»: ${result.initialPassword}.`,
-            "Sincronice usuarios de campo en la app móvil (admin) para aplicar el cambio.",
-          ].join(" ")
-        );
+        setPasswordNotice({
+          username: result.username,
+          password: result.initialPassword,
+          kind: "reset",
+        });
       }
     } catch (e) {
       setFormError(formatApiError(e, "No se pudo restablecer la contraseña."));
@@ -152,48 +148,51 @@ export function FieldUsersPageContent() {
   return (
     <div className="p-6">
       <div className="mb-4 rounded-md border border-sky-200 bg-sky-50 p-4 text-sm text-sky-950">
-        <p className="font-medium">App móvil ≠ panel web</p>
+        <p className="font-medium">Usuarios de la app móvil</p>
         <p className="mt-1 text-sky-900/90">
-          Estos usuarios son para la <strong>app móvil offline</strong>. Use un{" "}
-          <strong>username</strong> distinto del correo con el que entra al panel web (Cognito).
+          Son distintos del correo con el que entra a este panel. Use un nombre corto para que el operador
+          ingrese en el teléfono (por ejemplo, <strong>jperez</strong>).
         </p>
       </div>
 
       {!isLoading && canWrite && !hasMobileAdmin ? (
         <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
-          <p className="font-medium">Configuración inicial recomendada</p>
+          <p className="font-medium">Primeros pasos</p>
           <ol className="mt-2 list-decimal space-y-1 pl-5 text-amber-900/90">
-            <li>Cree <strong>su usuario móvil</strong> (administrador de la app).</li>
-            <li>Cree los <strong>operadores</strong> del equipo.</li>
-            <li>En la app: sincronice usuarios de campo y entre con su username de campo.</li>
+            <li>Cree un <strong>administrador móvil</strong> (su usuario en la app).</li>
+            <li>Cree los <strong>operadores de campo</strong> de su equipo.</li>
+            <li>En cada teléfono, actualice usuarios desde Configuración.</li>
           </ol>
         </div>
       ) : null}
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
         <p className="max-w-2xl text-sm text-muted-foreground">
-          Fuente maestra de logins offline. Tras crear o cambiar usuarios, un administrador móvil debe
-          sincronizar en cada dispositivo donde se usará la APK.
+          Si cambia contraseñas o desactiva usuarios, actualice los teléfonos afectados desde Configuración en
+          la app.
         </p>
         {canWrite ? (
-          <div className="flex flex-wrap gap-2">
-            <Button variant={hasMobileAdmin ? "outline" : "default"} onClick={() => openCreate("admin")}>
-              <UserPlus className="h-4 w-4" />
-              Crear mi usuario móvil
-            </Button>
-            <Button variant="outline" onClick={() => openCreate("operador")}>
-              <Plus className="h-4 w-4" />
-              Nuevo operador
-            </Button>
+          <div className="flex flex-col items-end gap-1">
+            <div className="flex flex-wrap gap-2">
+              <Button variant={hasMobileAdmin ? "outline" : "default"} onClick={() => openCreate("admin")}>
+                <UserPlus className="h-4 w-4" />
+                Administrador móvil
+              </Button>
+              <Button variant="outline" onClick={() => openCreate("operador")}>
+                <Plus className="h-4 w-4" />
+                Operador de campo
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              El administrador gestiona usuarios en la app; el operador solo trabaja en campo.
+            </p>
           </div>
         ) : null}
       </div>
 
       {formError ? <p className="mb-3 text-sm text-destructive">{formError}</p> : null}
       {passwordNotice ? (
-        <p className="mb-3 whitespace-pre-line rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-          {passwordNotice}
-        </p>
+        <FieldUserPasswordNotice data={passwordNotice} onDismiss={() => setPasswordNotice(null)} />
       ) : null}
 
       {isLoading ? (
@@ -208,7 +207,7 @@ export function FieldUsersPageContent() {
             <TableHeader>
               <TableRow>
                 <TableHead>Nombre</TableHead>
-                <TableHead>Username</TableHead>
+                <TableHead>Usuario de acceso</TableHead>
                 <TableHead>Rol</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead>Actualizado</TableHead>
@@ -220,7 +219,7 @@ export function FieldUsersPageContent() {
                 <TableRow>
                   <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
                     <HardHat className="mx-auto mb-2 h-8 w-8 opacity-40" />
-                    No hay usuarios de campo. {canWrite ? "Empiece con «Crear mi usuario móvil»." : ""}
+                    No hay usuarios de campo. {canWrite ? "Empiece creando un administrador móvil." : ""}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -287,7 +286,7 @@ export function FieldUsersPageContent() {
       <ConfirmDialog
         open={Boolean(deactivateTarget)}
         title="Desactivar usuario de campo"
-        description={`¿Confirma desactivar a ${deactivateTarget?.displayName ?? deactivateTarget?.username ?? "este usuario"}? No podrá iniciar sesión en la app móvil tras sincronizar.`}
+        description={`¿Confirma desactivar a ${deactivateTarget?.displayName ?? deactivateTarget?.username ?? "este usuario"}? No podrá ingresar en la app.`}
         confirmLabel="Desactivar"
         destructive
         loading={update.isPending}

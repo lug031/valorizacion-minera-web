@@ -83,17 +83,14 @@ export function buildEnrollmentInstructions(
   });
 
   return [
-    `Activación dispositivo — ${displayName}`,
+    `Código de activación — ${displayName}`,
     `Código: ${enrollmentCode}`,
     `Válido hasta: ${expiry}`,
     "",
-    "En la app móvil:",
-    "1) Abrir «Activar dispositivo» (requiere internet una vez)",
-    `2) Usuario: ${username}`,
-    "3) Contraseña: la del usuario de campo",
-    `4) Código: ${enrollmentCode}`,
-    "",
-    "El código es de un solo uso. Si expira, genere uno nuevo desde el panel.",
+    "En la app: Activar dispositivo",
+    `Usuario: ${username}`,
+    "Contraseña: la que le indicó el administrador",
+    `Código: ${enrollmentCode}`,
   ].join("\n");
 }
 

@@ -40,6 +40,7 @@ export function EnrollmentCodeDialog({ open, device, result, onClose }: Props) {
   if (!open || !device || !result) return null;
 
   const instructions = buildEnrollmentInstructions(device, result.enrollmentCode, result.expiresAt);
+  const displayName = device.fieldUserDisplayName ?? device.fieldUserUsername ?? "el operador";
 
   const handleCopyCode = async () => {
     const ok = await copyText(result.enrollmentCode);
@@ -63,8 +64,7 @@ export function EnrollmentCodeDialog({ open, device, result, onClose }: Props) {
           <div>
             <h2 className="text-lg font-semibold">Código de activación</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Para {device.fieldUserDisplayName ?? device.fieldUserUsername ?? "usuario de campo"}.
-              Este código se muestra <strong>una sola vez</strong>.
+              Para {displayName}. Envíelo al operador; solo se muestra una vez.
             </p>
           </div>
         </div>
@@ -75,7 +75,7 @@ export function EnrollmentCodeDialog({ open, device, result, onClose }: Props) {
             {result.enrollmentCode}
           </p>
           <p className="mt-2 text-sm text-amber-900/80">
-            Expira: {formatExpiry(result.expiresAt)} · un solo uso
+            Válido hasta {formatExpiry(result.expiresAt)}
           </p>
         </div>
 
@@ -86,26 +86,14 @@ export function EnrollmentCodeDialog({ open, device, result, onClose }: Props) {
           </Button>
           <Button type="button" variant="outline" onClick={() => void handleCopyInstructions()}>
             {copiedInstructions ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-            {copiedInstructions ? "Copiado" : "Copiar instrucciones"}
+            {copiedInstructions ? "Copiado" : "Copiar mensaje para enviar"}
           </Button>
         </div>
 
-        <div className="mt-4 rounded-md border bg-muted/40 p-3 text-sm">
-          <p className="font-medium">Pasos para el operador</p>
-          <ol className="mt-2 list-decimal space-y-1 pl-5 text-muted-foreground">
-            <li>Envíe el código al operador (WhatsApp, llamada, etc.).</li>
-            <li>
-              En la app: <strong>Activar dispositivo</strong> con usuario{" "}
-              <strong>{device.fieldUserUsername ?? "—"}</strong>, su contraseña de campo y el código.
-            </li>
-            <li>Requiere internet solo al activar; después puede ingresar sin conexión.</li>
-            <li>Si cambia de teléfono: retirar → asignar cupo → generar código nuevo.</li>
-          </ol>
-        </div>
-
-        <pre className="mt-4 max-h-40 overflow-auto rounded-md border bg-muted/30 p-3 text-xs whitespace-pre-wrap">
-          {instructions}
-        </pre>
+        <p className="mt-4 text-sm text-muted-foreground">
+          El operador debe abrir <strong>Activar dispositivo</strong> en la app e ingresar su usuario,
+          contraseña y este código. Si expira, genere uno nuevo.
+        </p>
 
         <div className="mt-5 flex justify-end">
           <Button type="button" onClick={onClose}>
