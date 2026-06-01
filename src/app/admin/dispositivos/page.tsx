@@ -8,7 +8,7 @@ export default function DispositivosPage() {
     <AdminShell>
       <AdminHeader
         title="Dispositivos móviles"
-        description="Asigne cupos, genere códigos de activación y controle licencias por usuario de campo."
+        description="Asigne cupos, genere códigos de activación y controle qué teléfonos pueden usar la app."
       />
       <FieldDevicesPageContent />
     </AdminShell>

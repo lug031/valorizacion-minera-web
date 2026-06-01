@@ -91,15 +91,15 @@ export function EnrollmentCodeDialog({ open, device, result, onClose }: Props) {
         </div>
 
         <div className="mt-4 rounded-md border bg-muted/40 p-3 text-sm">
-          <p className="font-medium">Runbook operativo</p>
+          <p className="font-medium">Pasos para el operador</p>
           <ol className="mt-2 list-decimal space-y-1 pl-5 text-muted-foreground">
             <li>Envíe el código al operador (WhatsApp, llamada, etc.).</li>
             <li>
-              En la app: <strong>Activar dispositivo</strong> con username{" "}
+              En la app: <strong>Activar dispositivo</strong> con usuario{" "}
               <strong>{device.fieldUserUsername ?? "—"}</strong>, su contraseña de campo y el código.
             </li>
-            <li>Requiere internet solo en la activación; luego el login es offline.</li>
-            <li>Si cambia de teléfono: revocar → asignar cupo → generar código nuevo.</li>
+            <li>Requiere internet solo al activar; después puede ingresar sin conexión.</li>
+            <li>Si cambia de teléfono: retirar → asignar cupo → generar código nuevo.</li>
           </ol>
         </div>
 

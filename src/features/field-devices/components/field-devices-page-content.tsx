@@ -172,33 +172,32 @@ export function FieldDevicesPageContent() {
   return (
     <div className="p-6">
       <div className="mb-4 rounded-md border border-sky-200 bg-sky-50 p-4 text-sm text-sky-950">
-        <p className="font-medium">Activación de dispositivos (Fase 3.1)</p>
+        <p className="font-medium">Cómo activar un teléfono</p>
         <p className="mt-1 text-sky-900/90">
-          Flujo: <strong>Asignar cupo</strong> → <strong>Generar código</strong> → operador activa en la
-          app (próxima fase móvil). Código de un solo uso, válido 72 h. Operador: 1 dispositivo; admin
-          móvil: 2.
+          Flujo: <strong>Asignar teléfono</strong> → <strong>Generar código</strong> → el operador activa en
+          la app. Código de un solo uso, válido 72 h. Operador: 1 teléfono; administrador móvil: 2.
         </p>
       </div>
 
       {canWrite && pendingWithoutCode > 0 ? (
         <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
-          <p className="font-medium">Cupos pendientes sin código</p>
+          <p className="font-medium">Teléfonos pendientes sin código</p>
           <p className="mt-1 text-amber-900/90">
-            Hay {pendingWithoutCode} dispositivo(s) en estado pending sin código activo. Genere un código
-            para cada teléfono que deba activarse.
+            Hay {pendingWithoutCode} teléfono(s) pendientes de activación sin código. Genere un código para
+            cada uno que deba usarse.
           </p>
         </div>
       ) : null}
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
         <p className="max-w-2xl text-sm text-muted-foreground">
-          Regenerar código invalida el anterior. Revocar libera el cupo. Cambio de teléfono: revocar →
-          asignar → nuevo código.
+          Regenerar código invalida el anterior. Retirar un teléfono libera el cupo. Cambio de teléfono:
+          retirar → asignar → generar código nuevo.
         </p>
         {canWrite ? (
           <Button onClick={openAssign}>
             <Plus className="h-4 w-4" />
-            Asignar dispositivo
+            Asignar teléfono
           </Button>
         ) : null}
       </div>
@@ -225,7 +224,7 @@ export function FieldDevicesPageContent() {
                 <TableHead>Rol</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead>Código</TableHead>
-                <TableHead>Fingerprint</TableHead>
+                <TableHead>Identificador</TableHead>
                 <TableHead>Bloqueado</TableHead>
                 <TableHead>Válido hasta</TableHead>
                 <TableHead>Última conexión</TableHead>
@@ -237,8 +236,8 @@ export function FieldDevicesPageContent() {
                 <TableRow>
                   <TableCell colSpan={9} className="py-8 text-center text-muted-foreground">
                     <Smartphone className="mx-auto mb-2 h-8 w-8 opacity-40" />
-                    No hay dispositivos registrados.
-                    {canWrite ? " Use «Asignar dispositivo» para reservar un cupo." : ""}
+                    No hay teléfonos registrados.
+                    {canWrite ? " Use «Asignar teléfono» para reservar un cupo." : ""}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -326,7 +325,7 @@ export function FieldDevicesPageContent() {
                           {canWrite && row.status !== "revoked" ? (
                             <Button variant="ghost" size="sm" onClick={() => setRevokeTarget(row)}>
                               <Ban className="h-4 w-4" />
-                              Revocar
+                              Retirar
                             </Button>
                           ) : null}
                         </div>
@@ -371,9 +370,9 @@ export function FieldDevicesPageContent() {
 
       <ConfirmDialog
         open={Boolean(revokeTarget)}
-        title="Revocar dispositivo"
-        description={`¿Confirma revocar el dispositivo de ${revokeTarget?.fieldUserDisplayName ?? revokeTarget?.fieldUserUsername ?? "este usuario"}? Libera el cupo y anula códigos de activación pendientes.`}
-        confirmLabel="Revocar"
+        title="Retirar teléfono"
+        description={`¿Confirma retirar el teléfono de ${revokeTarget?.fieldUserDisplayName ?? revokeTarget?.fieldUserUsername ?? "este usuario"}? Libera el cupo y anula códigos pendientes.`}
+        confirmLabel="Retirar"
         destructive
         loading={revoke.isPending}
         onCancel={() => setRevokeTarget(null)}

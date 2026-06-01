@@ -78,12 +78,12 @@ export function FieldDeviceFormDialog({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg border bg-background p-6 shadow-lg">
         <h2 className="text-lg font-semibold">
-          {mode === "assign" ? "Asignar dispositivo" : "Editar dispositivo"}
+          {mode === "assign" ? "Asignar teléfono" : "Editar teléfono"}
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
           {mode === "assign"
-            ? "Reserva un cupo pending. Luego genere un código de activación para el teléfono."
-            : "Bloqueo y validez se aplicarán en la app cuando el enrollment móvil esté activo."}
+            ? "Reserva un cupo para activación. Luego genere un código para el operador."
+            : "El bloqueo y la fecha de validez se aplican en la app del operador."}
         </p>
 
         {mode === "assign" ? (
@@ -114,7 +114,7 @@ export function FieldDeviceFormDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="assign-deviceLabel">Etiqueta del dispositivo (opcional)</Label>
+              <Label htmlFor="assign-deviceLabel">Nombre del teléfono (opcional)</Label>
               <Input
                 id="assign-deviceLabel"
                 placeholder="Ej. Samsung A54 — Juan"
@@ -166,11 +166,18 @@ export function FieldDeviceFormDialog({
                   {initial.fieldUserDisplayName ?? initial.fieldUserUsername ?? "—"}
                 </p>
                 <p className="mt-1">
-                  <span className="text-muted-foreground">Estado:</span> {initial.status ?? "—"}
+                  <span className="text-muted-foreground">Estado:</span>{" "}
+                  {initial.status === "pending"
+                    ? "Pendiente de activación"
+                    : initial.status === "enrolled"
+                      ? "Activo"
+                      : initial.status === "revoked"
+                        ? "Retirado"
+                        : (initial.status ?? "—")}
                 </p>
                 <p className="mt-1 break-all">
-                  <span className="text-muted-foreground">Fingerprint:</span>{" "}
-                  {initial.deviceFingerprintHash ?? "Pendiente de enrollment"}
+                  <span className="text-muted-foreground">Identificador:</span>{" "}
+                  {initial.deviceFingerprintHash ?? "Pendiente de activación"}
                 </p>
                 {initial.hasActiveActivationCode && initial.activationExpiresAt ? (
                   <p className="mt-1 text-amber-800">
@@ -186,7 +193,7 @@ export function FieldDeviceFormDialog({
             ) : null}
 
             <div className="space-y-2">
-              <Label htmlFor="update-deviceLabel">Etiqueta del dispositivo</Label>
+              <Label htmlFor="update-deviceLabel">Nombre del teléfono</Label>
               <Input
                 id="update-deviceLabel"
                 placeholder="Ej. Samsung A54 — Juan"
@@ -197,9 +204,9 @@ export function FieldDeviceFormDialog({
 
             <div className="flex items-center justify-between rounded-md border p-3">
               <div>
-                <Label htmlFor="isBlocked">Bloqueado</Label>
+                <Label htmlFor="isBlocked">Suspendido</Label>
                 <p className="text-xs text-muted-foreground">
-                  El bloqueo efectivo en la app llegará con el enrollment móvil (Fase 3.1.3).
+                  El operador no podrá usar la app en este teléfono mientras esté suspendido.
                 </p>
               </div>
               <Switch

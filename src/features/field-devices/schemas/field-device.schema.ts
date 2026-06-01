@@ -55,9 +55,9 @@ export interface FieldDeviceRecord {
 }
 
 export function fieldDeviceStatusLabel(status: FieldDeviceStatus | null | undefined): string {
-  if (status === "pending") return "Pendiente de enrollment";
-  if (status === "enrolled") return "Enrolled";
-  if (status === "revoked") return "Revocado";
+  if (status === "pending") return "Pendiente de activación";
+  if (status === "enrolled") return "Activo";
+  if (status === "revoked") return "Retirado";
   return "—";
 }
 
@@ -75,7 +75,7 @@ export function buildEnrollmentInstructions(
   enrollmentCode: string,
   expiresAt: string
 ): string {
-  const username = device.fieldUserUsername ?? "su username de campo";
+  const username = device.fieldUserUsername ?? "su usuario de campo";
   const displayName = device.fieldUserDisplayName ?? username;
   const expiry = new Date(expiresAt).toLocaleString("es-PE", {
     dateStyle: "short",
@@ -89,7 +89,7 @@ export function buildEnrollmentInstructions(
     "",
     "En la app móvil:",
     "1) Abrir «Activar dispositivo» (requiere internet una vez)",
-    `2) Username: ${username}`,
+    `2) Usuario: ${username}`,
     "3) Contraseña: la del usuario de campo",
     `4) Código: ${enrollmentCode}`,
     "",
