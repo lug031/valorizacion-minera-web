@@ -404,7 +404,6 @@ async function handleGenerateEnrollmentCode(event: FieldHandlerEvent): Promise<E
     fieldDeviceId,
     activationCodeHash: hashEnrollmentCode(normalizedCode),
     activationExpiresAt: expiresAt,
-    activationConsumedAt: null,
     activationAttemptCount: 0,
     lastActivationAttemptAt: null,
     createdAt: nowIso,
@@ -576,11 +575,12 @@ async function handleEnroll(event: FieldHandlerEvent): Promise<FieldDeviceEnroll
               UpdateExpression:
                 "SET activationConsumedAt = :consumedAt, updatedAt = :updatedAt, activationAttemptCount = :zero",
               ConditionExpression:
-                "attribute_not_exists(activationConsumedAt) AND activationExpiresAt > :nowIso",
+                "(attribute_not_exists(activationConsumedAt) OR attribute_type(activationConsumedAt, :nullType)) AND activationExpiresAt > :nowIso",
               ExpressionAttributeValues: {
                 ":consumedAt": nowIso,
                 ":updatedAt": nowIso,
                 ":zero": 0,
+                ":nullType": "NULL",
                 ":nowIso": nowIso,
               },
             },
