@@ -694,18 +694,30 @@ async function handleSyncStatus(event: FieldHandlerEvent): Promise<FieldDeviceSt
   }
 
   const device = await getFieldDeviceById(cloudDeviceId);
-  if (device.status === "revoked") {
-    throwFieldDeviceError("DEVICE_ALREADY_REVOKED", "El dispositivo fue revocado");
-  }
-  if (device.status !== "enrolled") {
-    throwFieldDeviceError("DEVICE_NOT_FOUND", "El dispositivo no está activado");
-  }
   if (device.deviceFingerprintHash !== deviceFingerprintHash) {
     throwFieldDeviceError("INVALID_FINGERPRINT", "El identificador del dispositivo no coincide");
   }
 
   const fieldUser = await getFieldUserById(device.fieldUserId);
   const nowIso = new Date().toISOString();
+
+  if (device.status === "revoked") {
+    return {
+      cloudDeviceId: device.id,
+      status: "revoked" as const,
+      isBlocked: device.isBlocked,
+      validUntil: device.validUntil ?? null,
+      graceDaysOffline: device.graceDaysOffline,
+      revokedAt: device.revokedAt ?? nowIso,
+      fieldUserIsActive: fieldUser.isActive,
+      lastSeenAt: device.lastSeenAt ?? null,
+      serverTime: nowIso,
+    };
+  }
+
+  if (device.status !== "enrolled") {
+    throwFieldDeviceError("DEVICE_NOT_FOUND", "El dispositivo no está activado");
+  }
 
   const updateParts = ["lastSeenAt = :lastSeenAt", "updatedAt = :updatedAt"];
   const values: Record<string, unknown> = {
