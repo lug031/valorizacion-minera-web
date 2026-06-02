@@ -7,8 +7,8 @@ export default function UsuariosPage() {
   return (
     <AdminShell>
       <AdminHeader
-        title="Usuarios del panel"
-        description="Personas con acceso al panel web. Para la app móvil, use Usuarios de campo."
+        title="Usuarios web"
+        description="Personas con acceso al panel web. Para la app móvil, use Usuarios móvil."
       />
       <StaffUsersPageContent />
     </AdminShell>

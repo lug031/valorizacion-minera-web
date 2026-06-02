@@ -93,7 +93,7 @@ export function FieldUsersPageContent() {
         setPasswordNotice(buildCreatedUserNotice(result.username, result.initialPassword));
       }
     } catch (e) {
-      setFormError(formatApiError(e, "No se pudo crear el usuario de campo."));
+      setFormError(formatApiError(e, "No se pudo crear el usuario móvil."));
     }
   };
 
@@ -104,7 +104,7 @@ export function FieldUsersPageContent() {
       await update.mutateAsync({ id: editing.id, values });
       setDialogOpen(false);
     } catch (e) {
-      setFormError(formatApiError(e, "No se pudo actualizar el usuario de campo."));
+      setFormError(formatApiError(e, "No se pudo actualizar el usuario móvil."));
     }
   };
 
@@ -152,7 +152,7 @@ export function FieldUsersPageContent() {
           <>
             <p className="max-w-2xl text-sm text-muted-foreground">
               Si restablece una contraseña o desactiva un usuario, en cada teléfono afectado ejecute
-              «Actualizar usuarios de campo» desde Configuración en la app.
+              «Actualizar usuarios móvil» desde Configuración en la app.
             </p>
             <Button onClick={openCreate}>
               <Plus className="h-4 w-4" />
@@ -168,10 +168,10 @@ export function FieldUsersPageContent() {
       ) : null}
 
       {isLoading ? (
-        <p className="text-sm text-muted-foreground">Cargando usuarios de campo…</p>
+        <p className="text-sm text-muted-foreground">Cargando usuarios móvil…</p>
       ) : error ? (
         <p className="text-sm text-destructive">
-          {formatApiError(error, "No se pudo cargar el listado de usuarios de campo.")}
+          {formatApiError(error, "No se pudo cargar el listado de usuarios móvil.")}
         </p>
       ) : (
         <div className="rounded-lg border bg-card">
@@ -191,7 +191,7 @@ export function FieldUsersPageContent() {
                 <TableRow>
                   <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
                     <HardHat className="mx-auto mb-2 h-8 w-8 opacity-40" />
-                    No hay usuarios de campo. {canWrite ? "Use «Nuevo usuario» para empezar." : ""}
+                    No hay usuarios móvil. {canWrite ? "Use «Nuevo usuario» para empezar." : ""}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -257,7 +257,7 @@ export function FieldUsersPageContent() {
 
       <ConfirmDialog
         open={Boolean(deactivateTarget)}
-        title="Desactivar usuario de campo"
+        title="Desactivar usuario móvil"
         description={`¿Confirma desactivar a ${deactivateTarget?.displayName ?? deactivateTarget?.username ?? "este usuario"}? No podrá ingresar en la app.`}
         confirmLabel="Desactivar"
         destructive

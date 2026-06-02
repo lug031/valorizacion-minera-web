@@ -23,8 +23,8 @@ export const adminNavigation: AdminNavItem[] = [
     ? [{ href: "/admin/proveedores", label: "Proveedores", icon: Truck, status: "active" as const }]
     : []),
   { href: "/admin/valorizaciones", label: "Valorizaciones", icon: ClipboardList, status: "active" },
-  { href: "/admin/usuarios", label: "Usuarios panel", icon: Users, status: "active" },
-  { href: "/admin/usuarios-campo", label: "Usuarios de campo", icon: HardHat, status: "active" },
+  { href: "/admin/usuarios", label: "Usuarios web", icon: Users, status: "active" },
+  { href: "/admin/usuarios-campo", label: "Usuarios móvil", icon: HardHat, status: "active" },
   { href: "/admin/dispositivos", label: "Dispositivos móviles", icon: Smartphone, status: "active" },
 ];
 

@@ -93,9 +93,9 @@ export function FieldUserFormDialog({
         <h2 className="text-lg font-semibold">
           {isEditing
             ? readOnly
-              ? "Ver usuario de campo"
-              : "Editar usuario de campo"
-            : "Nuevo usuario de campo"}
+              ? "Ver usuario móvil"
+              : "Editar usuario móvil"
+            : "Nuevo usuario móvil"}
         </h2>
         {!isEditing ? (
           <p className="mt-1 text-sm text-muted-foreground">
