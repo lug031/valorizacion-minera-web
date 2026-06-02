@@ -1,4 +1,4 @@
-import { defineBackend } from "@aws-amplify/backend";
+import { defineBackend, secret } from "@aws-amplify/backend";
 import { PolicyStatement } from "aws-cdk-lib/aws-iam";
 import { auth } from "./auth/resource";
 import { data } from "./data/resource";
@@ -139,3 +139,8 @@ backend.mobileConfig.addEnvironment(
   "APPSETTINGS_TABLE_NAME",
   backend.data.resources.tables.AppSettings.tableName
 );
+
+const deviceSessionTokenSecret = secret("DEVICE_SESSION_TOKEN_SECRET");
+backend.fieldDevices.addEnvironment("DEVICE_SESSION_TOKEN_SECRET", deviceSessionTokenSecret);
+backend.fieldValuations.addEnvironment("DEVICE_SESSION_TOKEN_SECRET", deviceSessionTokenSecret);
+backend.mobileConfig.addEnvironment("DEVICE_SESSION_TOKEN_SECRET", deviceSessionTokenSecret);
