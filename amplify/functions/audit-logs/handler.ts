@@ -152,7 +152,7 @@ export const handler: AppSyncResolverHandler<Record<string, unknown>, AuditLogCo
   const auditEvent = event as AuditLogsEvent;
   const field = resolveFieldName(auditEvent);
   switch (field) {
-    case "listAuditLogs":
+    case "listManagedAuditLogs":
       return await handleListAuditLogs(auditEvent);
     default:
       throw new Error(`Operación no soportada: ${field}`);

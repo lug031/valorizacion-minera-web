@@ -651,7 +651,8 @@ const schema = a.schema({
     nextToken: a.string(),
   }),
 
-  listAuditLogs: a
+  /** Custom op (no colisionar con listAuditLogs auto-generado del model). */
+  listManagedAuditLogs: a
     .query()
     .arguments({
       entityType: a.string(),

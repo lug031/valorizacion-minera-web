@@ -12,7 +12,7 @@ import { handler } from "../handler";
 function invokeList(args: Record<string, unknown> = {}) {
   return handler(
     {
-      fieldName: "listAuditLogs",
+      fieldName: "listManagedAuditLogs",
       arguments: args,
     } as never,
     {} as never,
@@ -20,7 +20,7 @@ function invokeList(args: Record<string, unknown> = {}) {
   );
 }
 
-describe("audit-logs listAuditLogs", () => {
+describe("audit-logs listManagedAuditLogs", () => {
   beforeEach(() => {
     mockSend.mockReset();
   });
