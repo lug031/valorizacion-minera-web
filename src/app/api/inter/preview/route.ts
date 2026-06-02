@@ -8,7 +8,7 @@ import {
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const auth = verifyAdminBearer(request.headers.get("authorization"));
+  const auth = await verifyAdminBearer(request.headers.get("authorization"));
   if (!auth.ok) {
     return NextResponse.json({ error: auth.reason }, { status: 401 });
   }

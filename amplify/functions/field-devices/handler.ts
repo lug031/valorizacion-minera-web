@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHmac, randomUUID } from "node:crypto";
 import type { AppSyncResolverHandler } from "aws-lambda";
 import type { Schema } from "../../data/resource";
 import { env } from "$amplify/env/field-devices";
@@ -26,6 +26,7 @@ type FieldDeviceRecord = Schema["FieldDeviceRecord"]["type"];
 type EnrollmentCodeResult = Schema["EnrollmentCodeResult"]["type"];
 type FieldDeviceEnrollmentResult = Schema["FieldDeviceEnrollmentResult"]["type"];
 type FieldDeviceStatusSyncResult = Schema["FieldDeviceStatusSyncResult"]["type"];
+type DeviceSessionTokenResult = Schema["DeviceSessionTokenResult"]["type"];
 
 type FieldHandlerEvent = {
   fieldName?: string;
@@ -44,6 +45,7 @@ const ENROLLMENT_CODE_TTL_MS = 72 * 60 * 60 * 1000;
 const ENROLLMENT_CODE_LENGTH = 8;
 const MAX_ACTIVATION_ATTEMPTS = 5;
 const ACTIVATION_ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
+const DEVICE_SESSION_TOKEN_TTL_SECONDS = 30 * 60;
 
 function resolveFieldName(event: FieldHandlerEvent): string {
   const field = event.fieldName ?? event.info?.fieldName;
@@ -69,6 +71,132 @@ function enrollmentTokenTableName(): string {
   const name = env.ENROLLMENTTOKEN_TABLE_NAME;
   if (!name) throw new Error("Tabla EnrollmentToken no configurada");
   return name;
+}
+
+function auditLogTableName(): string {
+  const name = env.AUDITLOG_TABLE_NAME;
+  return name || "AuditLog";
+}
+
+function deviceSessionTokenSecret(): string {
+  const secret = env.DEVICE_SESSION_TOKEN_SECRET?.trim();
+  if (!secret) throw new Error("Secret de sesión de dispositivo no configurado");
+  return secret;
+}
+
+function base64UrlEncode(value: string): string {
+  return Buffer.from(value, "utf8").toString("base64url");
+}
+
+function signDeviceSessionToken(payload: Record<string, unknown>): string {
+  const header = { alg: "HS256", typ: "JWT" };
+  const encodedHeader = base64UrlEncode(JSON.stringify(header));
+  const encodedPayload = base64UrlEncode(JSON.stringify(payload));
+  const signingInput = `${encodedHeader}.${encodedPayload}`;
+  const signature = createHmac("sha256", deviceSessionTokenSecret())
+    .update(signingInput, "utf8")
+    .digest("base64url");
+  return `${signingInput}.${signature}`;
+}
+
+function decodeBase64UrlJson<T>(encoded: string): T {
+  const text = Buffer.from(encoded, "base64url").toString("utf8");
+  return JSON.parse(text) as T;
+}
+
+function verifyDeviceSessionToken(
+  token: string,
+  expected: {
+    cloudDeviceId: string;
+    deviceFingerprintHash: string;
+  }
+): { sub: string } {
+  const parts = token.split(".");
+  if (parts.length !== 3) {
+    throwFieldDeviceError("INVALID_SESSION_TOKEN", "Sesión de dispositivo inválida");
+  }
+  const [encodedHeader, encodedPayload, signature] = parts;
+  const signingInput = `${encodedHeader}.${encodedPayload}`;
+  const expectedSignature = createHmac("sha256", deviceSessionTokenSecret())
+    .update(signingInput, "utf8")
+    .digest("base64url");
+  if (signature !== expectedSignature) {
+    throwFieldDeviceError("INVALID_SESSION_TOKEN", "Sesión de dispositivo inválida");
+  }
+  const payload = decodeBase64UrlJson<{
+    sub?: string;
+    cloudDeviceId?: string;
+    deviceFingerprintHash?: string;
+    exp?: number;
+    tokenType?: string;
+  }>(encodedPayload);
+  const nowEpoch = Math.floor(Date.now() / 1000);
+  if (
+    payload.tokenType !== "device_session" ||
+    typeof payload.sub !== "string" ||
+    typeof payload.exp !== "number" ||
+    payload.exp <= nowEpoch
+  ) {
+    throwFieldDeviceError("INVALID_SESSION_TOKEN", "Sesión de dispositivo inválida o expirada");
+  }
+  if (
+    payload.cloudDeviceId !== expected.cloudDeviceId ||
+    payload.deviceFingerprintHash !== expected.deviceFingerprintHash
+  ) {
+    throwFieldDeviceError("INVALID_SESSION_TOKEN", "Sesión de dispositivo inválida");
+  }
+  return { sub: payload.sub };
+}
+
+async function writeAuditLog(entry: {
+  entityType: string;
+  entityId: string;
+  action: string;
+  userId?: string | null;
+  payload?: unknown;
+}): Promise<void> {
+  const nowIso = new Date().toISOString();
+  const payloadJson =
+    entry.payload == null ? null : JSON.stringify(entry.payload).slice(0, 4000);
+  await doc.send(
+    new PutCommand({
+      TableName: auditLogTableName(),
+      Item: {
+        id: randomUUID(),
+        entityType: entry.entityType,
+        entityId: entry.entityId,
+        action: entry.action,
+        payloadJson,
+        userId: entry.userId ?? null,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      },
+    })
+  );
+}
+
+async function writeAuditLogSafe(entry: {
+  entityType: string;
+  entityId: string;
+  action: string;
+  userId?: string | null;
+  payload?: unknown;
+}): Promise<void> {
+  try {
+    await writeAuditLog(entry);
+  } catch (error) {
+    console.warn(
+      JSON.stringify({
+        component: "field-devices",
+        event: "audit_log_write_failed",
+        entityType: entry.entityType,
+        entityId: entry.entityId,
+        action: entry.action,
+        at: new Date().toISOString(),
+        error: error instanceof Error ? error.message : "unknown",
+      })
+    );
+  }
 }
 
 type FieldUserItem = {
@@ -368,6 +496,18 @@ async function handleAssign(event: FieldHandlerEvent): Promise<FieldDeviceRecord
       Item: device,
     })
   );
+  await writeAuditLogSafe({
+    entityType: "field_device",
+    entityId: device.id,
+    action: "assignManagedFieldDevice",
+    userId: fieldUser.id,
+    payload: {
+      fieldUserId,
+      status: device.status,
+      validUntil,
+      deviceLabel,
+    },
+  });
 
   return toFieldDeviceRecord(device, fieldUser);
 }
@@ -416,6 +556,17 @@ async function handleGenerateEnrollmentCode(event: FieldHandlerEvent): Promise<E
       Item: token,
     })
   );
+  await writeAuditLogSafe({
+    entityType: "field_device",
+    entityId: fieldDeviceId,
+    action: "generateManagedFieldDeviceEnrollmentCode",
+    userId: fieldUser.id,
+    payload: {
+      expiresAt,
+      codeLength: ENROLLMENT_CODE_LENGTH,
+      singleUse: true,
+    },
+  });
 
   return {
     fieldDeviceId,
@@ -587,6 +738,17 @@ async function handleEnroll(event: FieldHandlerEvent): Promise<FieldDeviceEnroll
     lastSeenAt: nowIso,
     updatedAt: nowIso,
   };
+  await writeAuditLogSafe({
+    entityType: "field_device",
+    entityId: enrolledDevice.id,
+    action: "enrollFieldDevice",
+    userId: fieldUser.id,
+    payload: {
+      cloudDeviceId: enrolledDevice.id,
+      platform,
+      appVersion,
+    },
+  });
 
   return {
     device: {
@@ -617,6 +779,7 @@ async function handleEnroll(event: FieldHandlerEvent): Promise<FieldDeviceEnroll
 async function handleSyncStatus(event: FieldHandlerEvent): Promise<FieldDeviceStatusSyncResult> {
   const cloudDeviceId = String(event.arguments.cloudDeviceId ?? "").trim();
   const deviceFingerprintHash = String(event.arguments.deviceFingerprintHash ?? "").trim();
+  const sessionToken = String(event.arguments.sessionToken ?? "").trim();
   const platform = typeof event.arguments.platform === "string" ? event.arguments.platform.trim() : null;
   const appVersion =
     typeof event.arguments.appVersion === "string" ? event.arguments.appVersion.trim() : null;
@@ -627,8 +790,18 @@ async function handleSyncStatus(event: FieldHandlerEvent): Promise<FieldDeviceSt
   } catch {
     throwFieldDeviceError("INVALID_FINGERPRINT", "Formato de identificador de dispositivo inválido");
   }
+  if (!sessionToken) {
+    throwFieldDeviceError("INVALID_SESSION_TOKEN", "Sesión de dispositivo inválida");
+  }
+  const tokenClaims = verifyDeviceSessionToken(sessionToken, {
+    cloudDeviceId,
+    deviceFingerprintHash,
+  });
 
   const device = await getFieldDeviceById(cloudDeviceId);
+  if (tokenClaims.sub !== device.fieldUserId) {
+    throwFieldDeviceError("INVALID_SESSION_TOKEN", "Sesión de dispositivo inválida");
+  }
   if (device.deviceFingerprintHash !== deviceFingerprintHash) {
     throwFieldDeviceError("INVALID_FINGERPRINT", "El identificador del dispositivo no coincide");
   }
@@ -637,6 +810,16 @@ async function handleSyncStatus(event: FieldHandlerEvent): Promise<FieldDeviceSt
   const nowIso = new Date().toISOString();
 
   if (device.status === "revoked") {
+    await writeAuditLogSafe({
+      entityType: "field_device",
+      entityId: device.id,
+      action: "syncFieldDeviceStatus_revoked",
+      userId: fieldUser.id,
+      payload: {
+        cloudDeviceId: device.id,
+        status: "revoked",
+      },
+    });
     return {
       cloudDeviceId: device.id,
       status: "revoked" as const,
@@ -676,6 +859,18 @@ async function handleSyncStatus(event: FieldHandlerEvent): Promise<FieldDeviceSt
       ExpressionAttributeValues: values,
     })
   );
+  await writeAuditLogSafe({
+    entityType: "field_device",
+    entityId: device.id,
+    action: "syncFieldDeviceStatus",
+    userId: fieldUser.id,
+    payload: {
+      cloudDeviceId: device.id,
+      status: device.status,
+      platform: platform ?? undefined,
+      appVersion: appVersion ?? undefined,
+    },
+  });
 
   return {
     cloudDeviceId: device.id,
@@ -686,6 +881,149 @@ async function handleSyncStatus(event: FieldHandlerEvent): Promise<FieldDeviceSt
     revokedAt: device.revokedAt ?? null,
     fieldUserIsActive: fieldUser.isActive,
     lastSeenAt: nowIso,
+    serverTime: nowIso,
+  };
+}
+
+async function handleIssueDeviceSessionToken(event: FieldHandlerEvent): Promise<DeviceSessionTokenResult> {
+  const cloudDeviceId = String(event.arguments.cloudDeviceId ?? "").trim();
+  const username = String(event.arguments.username ?? "").trim();
+  const password = String(event.arguments.password ?? "");
+  const deviceFingerprintHash = String(event.arguments.deviceFingerprintHash ?? "").trim();
+  const now = new Date();
+  const nowIso = now.toISOString();
+
+  if (!cloudDeviceId) throwFieldDeviceError("DEVICE_NOT_FOUND", "Dispositivo no encontrado");
+  if (!username || !password) {
+    throwFieldDeviceError("INVALID_CREDENTIALS", "Usuario o contraseña incorrectos");
+  }
+  try {
+    assertValidFingerprintHash(deviceFingerprintHash);
+  } catch {
+    throwFieldDeviceError("INVALID_FINGERPRINT", "Formato de identificador de dispositivo inválido");
+  }
+
+  const device = await getFieldDeviceById(cloudDeviceId);
+  if (device.status === "revoked") {
+    throwFieldDeviceError("DEVICE_ALREADY_REVOKED", "Dispositivo revocado");
+  }
+  if (device.status !== "enrolled") {
+    throwFieldDeviceError("DEVICE_NOT_PENDING", "Este dispositivo aún no está activado");
+  }
+  if (device.isBlocked) {
+    throwFieldDeviceError("DEVICE_BLOCKED", "Dispositivo bloqueado por administración");
+  }
+  if (device.deviceFingerprintHash !== deviceFingerprintHash) {
+    throwFieldDeviceError("INVALID_FINGERPRINT", "El identificador del dispositivo no coincide");
+  }
+
+  const fieldUser = await getFieldUserById(device.fieldUserId);
+  if (!fieldUser.isActive) {
+    throwFieldDeviceError("FIELD_USER_INACTIVE", "Usuario de campo desactivado");
+  }
+  if (normalizeUsername(username) !== normalizeUsername(fieldUser.username)) {
+    throwFieldDeviceError("INVALID_CREDENTIALS", "Usuario o contraseña incorrectos");
+  }
+  if (!verifyMobilePassword(password, fieldUser.mobilePasswordHash)) {
+    throwFieldDeviceError("INVALID_CREDENTIALS", "Usuario o contraseña incorrectos");
+  }
+
+  const iat = Math.floor(now.getTime() / 1000);
+  const exp = iat + DEVICE_SESSION_TOKEN_TTL_SECONDS;
+  const sessionToken = signDeviceSessionToken({
+    sub: fieldUser.id,
+    cloudDeviceId: device.id,
+    deviceFingerprintHash,
+    iat,
+    exp,
+    tokenType: "device_session",
+  });
+  const expiresAt = new Date(exp * 1000).toISOString();
+  await writeAuditLogSafe({
+    entityType: "field_device_session",
+    entityId: device.id,
+    action: "issueDeviceSessionToken",
+    userId: fieldUser.id,
+    payload: {
+      cloudDeviceId: device.id,
+      expiresAt,
+    },
+  });
+
+  return {
+    sessionToken,
+    expiresAt,
+    serverTime: nowIso,
+  };
+}
+
+async function handleRefreshDeviceSessionToken(event: FieldHandlerEvent): Promise<DeviceSessionTokenResult> {
+  const cloudDeviceId = String(event.arguments.cloudDeviceId ?? "").trim();
+  const deviceFingerprintHash = String(event.arguments.deviceFingerprintHash ?? "").trim();
+  const sessionToken = String(event.arguments.sessionToken ?? "").trim();
+  const now = new Date();
+  const nowIso = now.toISOString();
+
+  if (!cloudDeviceId) throwFieldDeviceError("DEVICE_NOT_FOUND", "Dispositivo no encontrado");
+  try {
+    assertValidFingerprintHash(deviceFingerprintHash);
+  } catch {
+    throwFieldDeviceError("INVALID_FINGERPRINT", "Formato de identificador de dispositivo inválido");
+  }
+  if (!sessionToken) {
+    throwFieldDeviceError("INVALID_SESSION_TOKEN", "Sesión de dispositivo inválida");
+  }
+
+  const tokenClaims = verifyDeviceSessionToken(sessionToken, {
+    cloudDeviceId,
+    deviceFingerprintHash,
+  });
+  const device = await getFieldDeviceById(cloudDeviceId);
+  if (device.fieldUserId !== tokenClaims.sub) {
+    throwFieldDeviceError("INVALID_SESSION_TOKEN", "Sesión de dispositivo inválida");
+  }
+  if (device.status === "revoked") {
+    throwFieldDeviceError("DEVICE_ALREADY_REVOKED", "Dispositivo revocado");
+  }
+  if (device.status !== "enrolled") {
+    throwFieldDeviceError("DEVICE_NOT_PENDING", "Este dispositivo aún no está activado");
+  }
+  if (device.isBlocked) {
+    throwFieldDeviceError("DEVICE_BLOCKED", "Dispositivo bloqueado por administración");
+  }
+  if (device.deviceFingerprintHash !== deviceFingerprintHash) {
+    throwFieldDeviceError("INVALID_FINGERPRINT", "El identificador del dispositivo no coincide");
+  }
+  const fieldUser = await getFieldUserById(device.fieldUserId);
+  if (!fieldUser.isActive) {
+    throwFieldDeviceError("FIELD_USER_INACTIVE", "Usuario de campo desactivado");
+  }
+
+  const iat = Math.floor(now.getTime() / 1000);
+  const exp = iat + DEVICE_SESSION_TOKEN_TTL_SECONDS;
+  const refreshedToken = signDeviceSessionToken({
+    sub: fieldUser.id,
+    cloudDeviceId: device.id,
+    deviceFingerprintHash,
+    iat,
+    exp,
+    tokenType: "device_session",
+  });
+  const expiresAt = new Date(exp * 1000).toISOString();
+  await writeAuditLogSafe({
+    entityType: "field_device_session",
+    entityId: device.id,
+    action: "refreshDeviceSessionToken",
+    userId: fieldUser.id,
+    payload: {
+      cloudDeviceId: device.id,
+      expiresAt,
+    },
+  });
+
+  return {
+    sessionToken: refreshedToken,
+    expiresAt,
     serverTime: nowIso,
   };
 }
@@ -725,6 +1063,17 @@ async function handleUpdate(event: FieldHandlerEvent): Promise<FieldDeviceRecord
       },
     })
   );
+  await writeAuditLogSafe({
+    entityType: "field_device",
+    entityId: id,
+    action: "updateManagedFieldDevice",
+    userId: fieldUser.id,
+    payload: {
+      isBlocked,
+      validUntil,
+      deviceLabel: deviceLabel ?? current.deviceLabel ?? null,
+    },
+  });
 
   const tokens = await scanEnrollmentTokens();
   const activeToken = findActiveTokenForDevice(tokens, id, Date.now());
@@ -770,6 +1119,15 @@ async function handleRevoke(event: FieldHandlerEvent): Promise<FieldDeviceRecord
       },
     })
   );
+  await writeAuditLogSafe({
+    entityType: "field_device",
+    entityId: id,
+    action: "revokeManagedFieldDevice",
+    userId: fieldUser.id,
+    payload: {
+      revokedAt: now,
+    },
+  });
 
   return toFieldDeviceRecord(
     {
@@ -789,6 +1147,7 @@ export const handler: AppSyncResolverHandler<
   | EnrollmentCodeResult
   | FieldDeviceEnrollmentResult
   | FieldDeviceStatusSyncResult
+  | DeviceSessionTokenResult
   | null
 > = async (event) => {
   try {
@@ -805,6 +1164,10 @@ export const handler: AppSyncResolverHandler<
         return await handleEnroll(fieldEvent);
       case "syncFieldDeviceStatus":
         return await handleSyncStatus(fieldEvent);
+      case "issueDeviceSessionToken":
+        return await handleIssueDeviceSessionToken(fieldEvent);
+      case "refreshDeviceSessionToken":
+        return await handleRefreshDeviceSessionToken(fieldEvent);
       case "updateManagedFieldDevice":
         return await handleUpdate(fieldEvent);
       case "revokeManagedFieldDevice":

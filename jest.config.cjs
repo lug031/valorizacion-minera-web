@@ -7,5 +7,10 @@ module.exports = {
   moduleNameMapper: {
     '^\\$amplify/env/field-valuations$':
       '<rootDir>/amplify/functions/field-valuations/__tests__/mock-env.ts',
+    '^\\$amplify/env/field-devices$':
+      '<rootDir>/amplify/functions/field-devices/__tests__/mock-env.ts',
+    '^\\$amplify/env/audit-logs$':
+      '<rootDir>/amplify/functions/audit-logs/__tests__/mock-env.ts',
+    '^@/(.*)$': '<rootDir>/src/$1',
   },
 };

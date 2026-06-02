@@ -3,6 +3,8 @@ import { staffUsers } from "../functions/staff-users/resource";
 import { fieldUsers } from "../functions/field-users/resource";
 import { fieldDevices } from "../functions/field-devices/resource";
 import { fieldValuations } from "../functions/field-valuations/resource";
+import { auditLogs } from "../functions/audit-logs/resource";
+import { mobileConfig } from "../functions/mobile-config/resource";
 
 /**
  * Esquema cloud alineado al SQLite móvil.
@@ -367,6 +369,12 @@ const schema = a.schema({
     serverTime: a.string().required(),
   }),
 
+  DeviceSessionTokenResult: a.customType({
+    sessionToken: a.string().required(),
+    expiresAt: a.string().required(),
+    serverTime: a.string().required(),
+  }),
+
   listManagedFieldDevices: a
     .query()
     .returns(a.ref("FieldDeviceRecord").array())
@@ -416,10 +424,34 @@ const schema = a.schema({
     .arguments({
       cloudDeviceId: a.id().required(),
       deviceFingerprintHash: a.string().required(),
+      sessionToken: a.string().required(),
       platform: a.string(),
       appVersion: a.string(),
     })
     .returns(a.ref("FieldDeviceStatusSyncResult"))
+    .authorization((allow) => [allow.publicApiKey()])
+    .handler(a.handler.function(fieldDevices)),
+
+  issueDeviceSessionToken: a
+    .mutation()
+    .arguments({
+      cloudDeviceId: a.id().required(),
+      username: a.string().required(),
+      password: a.string().required(),
+      deviceFingerprintHash: a.string().required(),
+    })
+    .returns(a.ref("DeviceSessionTokenResult"))
+    .authorization((allow) => [allow.publicApiKey()])
+    .handler(a.handler.function(fieldDevices)),
+
+  refreshDeviceSessionToken: a
+    .mutation()
+    .arguments({
+      cloudDeviceId: a.id().required(),
+      deviceFingerprintHash: a.string().required(),
+      sessionToken: a.string().required(),
+    })
+    .returns(a.ref("DeviceSessionTokenResult"))
     .authorization((allow) => [allow.publicApiKey()])
     .handler(a.handler.function(fieldDevices)),
 
@@ -496,6 +528,7 @@ const schema = a.schema({
       sourceUpdatedAt: a.string().required(),
       cloudDeviceId: a.id().required(),
       deviceFingerprintHash: a.string().required(),
+      sessionToken: a.string().required(),
       fieldDeviceLabel: a.string(),
       platform: a.string(),
       appVersion: a.string(),
@@ -503,6 +536,91 @@ const schema = a.schema({
     .returns(a.ref("PushMobileValuationResult"))
     .authorization((allow) => [allow.publicApiKey()])
     .handler(a.handler.function(fieldValuations)),
+
+  MobileConfigMaterialType: a.customType({
+    id: a.string().required(),
+    code: a.string().required(),
+    label: a.string().required(),
+    isActive: a.boolean(),
+    sortOrder: a.integer(),
+    notes: a.string(),
+    metadataJson: a.string(),
+    updatedAt: a.string(),
+  }),
+
+  MobileConfigMaquilaRange: a.customType({
+    id: a.string().required(),
+    minLeyOzTc: a.string().required(),
+    maxLeyOzTc: a.string().required(),
+    maquila: a.string().required(),
+    sortOrder: a.integer(),
+    isActive: a.boolean(),
+    notes: a.string(),
+    updatedAt: a.string(),
+  }),
+
+  MobileConfigProvider: a.customType({
+    id: a.string().required(),
+    name: a.string().required(),
+    isActive: a.boolean(),
+    updatedAt: a.string(),
+  }),
+
+  MobileConfigProviderDefaults: a.customType({
+    id: a.string().required(),
+    providerId: a.string().required(),
+    recPercentGold: a.string(),
+    recPercentSilver: a.string(),
+    rcGold: a.string(),
+    rcSilver: a.string(),
+    consumos: a.string(),
+    flete: a.string(),
+    interGold: a.string(),
+    interSilver: a.string(),
+    factor: a.string(),
+    updatedAt: a.string(),
+  }),
+
+  MobileConfigAppSettings: a.customType({
+    id: a.string().required(),
+    settingsKey: a.string().required(),
+    factor: a.string().required(),
+    defaultConsumos: a.string(),
+    defaultFlete: a.string(),
+    defaultRcGold: a.string(),
+    defaultRcSilver: a.string(),
+    defaultRecPercentGold: a.string(),
+    defaultRecPercentSilver: a.string(),
+    defaultInterGold: a.string(),
+    defaultInterSilver: a.string(),
+    interGoldSource: a.string(),
+    interSilverSource: a.string(),
+    interGoldFetchedAt: a.string(),
+    interSilverFetchedAt: a.string(),
+    interFetchStatus: a.string(),
+    interFetchError: a.string(),
+    updatedAt: a.string(),
+  }),
+
+  MobileConfigBundleResult: a.customType({
+    materialTypes: a.ref("MobileConfigMaterialType").array().required(),
+    maquilaRanges: a.ref("MobileConfigMaquilaRange").array().required(),
+    providers: a.ref("MobileConfigProvider").array().required(),
+    providerDefaults: a.ref("MobileConfigProviderDefaults").array().required(),
+    appSettings: a.ref("MobileConfigAppSettings").array().required(),
+    serverTime: a.string().required(),
+  }),
+
+  getMobileConfigBundle: a
+    .query()
+    .arguments({
+      cloudDeviceId: a.id().required(),
+      deviceFingerprintHash: a.string().required(),
+      sessionToken: a.string().required(),
+    })
+    .returns(a.ref("MobileConfigBundleResult"))
+    .authorization((allow) => [allow.publicApiKey()])
+    .handler(a.handler.function(mobileConfig)),
 
   AuditLog: a
     .model({
@@ -512,10 +630,49 @@ const schema = a.schema({
       payloadJson: a.string(),
       userId: a.string(),
     })
+    .secondaryIndexes((index) => [
+      index("entityType").sortKeys(["createdAt"]),
+      index("userId").sortKeys(["createdAt"]),
+      index("action").sortKeys(["createdAt"]),
+    ])
     .authorization((allow) => [
+      allow.resource(fieldDevices).to(["create"]),
+      allow.resource(fieldValuations).to(["create"]),
       allow.groups(["admin"]).to(["create", "read"]),
       allow.groups(["supervisor"]).to(["read"]),
     ]),
+
+  AuditLogRecord: a.customType({
+    id: a.string().required(),
+    entityType: a.string().required(),
+    entityId: a.string().required(),
+    action: a.string().required(),
+    payloadJson: a.string(),
+    userId: a.string(),
+    createdAt: a.string().required(),
+    updatedAt: a.string().required(),
+  }),
+
+  AuditLogConnection: a.customType({
+    items: a.ref("AuditLogRecord").array().required(),
+    nextToken: a.string(),
+  }),
+
+  listAuditLogs: a
+    .query()
+    .arguments({
+      entityType: a.string(),
+      entityId: a.string(),
+      action: a.string(),
+      userId: a.string(),
+      from: a.string(),
+      to: a.string(),
+      limit: a.integer(),
+      nextToken: a.string(),
+    })
+    .returns(a.ref("AuditLogConnection"))
+    .authorization((allow) => [allow.groups(["admin", "supervisor"])])
+    .handler(a.handler.function(auditLogs)),
 });
 
 export type Schema = ClientSchema<typeof schema>;

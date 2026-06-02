@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHmac, randomUUID } from "node:crypto";
 import type { AppSyncResolverHandler } from "aws-lambda";
 import type { Schema } from "../../data/resource";
 import { env } from "$amplify/env/field-valuations";
@@ -81,6 +81,68 @@ function fieldUserTableName(): string {
   return name;
 }
 
+function deviceSessionTokenSecret(): string {
+  const secret = env.DEVICE_SESSION_TOKEN_SECRET?.trim();
+  if (!secret) throw new Error("Secret de sesión de dispositivo no configurado");
+  return secret;
+}
+
+function auditLogTableName(): string {
+  const name = env.AUDITLOG_TABLE_NAME;
+  return name || "AuditLog";
+}
+
+async function writeAuditLog(entry: {
+  entityType: string;
+  entityId: string;
+  action: string;
+  userId?: string | null;
+  payload?: unknown;
+}): Promise<void> {
+  const nowIso = new Date().toISOString();
+  const payloadJson =
+    entry.payload == null ? null : JSON.stringify(entry.payload).slice(0, 4000);
+  await doc.send(
+    new PutCommand({
+      TableName: auditLogTableName(),
+      Item: {
+        id: randomUUID(),
+        entityType: entry.entityType,
+        entityId: entry.entityId,
+        action: entry.action,
+        payloadJson,
+        userId: entry.userId ?? null,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      },
+    })
+  );
+}
+
+async function writeAuditLogSafe(entry: {
+  entityType: string;
+  entityId: string;
+  action: string;
+  userId?: string | null;
+  payload?: unknown;
+}): Promise<void> {
+  try {
+    await writeAuditLog(entry);
+  } catch (error) {
+    console.warn(
+      JSON.stringify({
+        component: "field-valuations",
+        event: "audit_log_write_failed",
+        entityType: entry.entityType,
+        entityId: entry.entityId,
+        action: entry.action,
+        at: new Date().toISOString(),
+        error: error instanceof Error ? error.message : "unknown",
+      })
+    );
+  }
+}
+
 function requireString(value: unknown, label: string): string {
   const text = typeof value === "string" ? value.trim() : "";
   if (!text) {
@@ -93,6 +155,56 @@ function optionalString(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const text = value.trim();
   return text || null;
+}
+
+function decodeBase64UrlJson<T>(encoded: string): T {
+  const text = Buffer.from(encoded, "base64url").toString("utf8");
+  return JSON.parse(text) as T;
+}
+
+function verifyDeviceSessionToken(
+  token: string,
+  expected: {
+    cloudDeviceId: string;
+    deviceFingerprintHash: string;
+    createdByFieldUserId: string;
+  }
+): void {
+  const parts = token.split(".");
+  if (parts.length !== 3) {
+    throwFieldValuationError("INVALID_SESSION_TOKEN", "Sesión de dispositivo inválida");
+  }
+  const [encodedHeader, encodedPayload, signature] = parts;
+  const signingInput = `${encodedHeader}.${encodedPayload}`;
+  const expectedSignature = createHmac("sha256", deviceSessionTokenSecret())
+    .update(signingInput, "utf8")
+    .digest("base64url");
+  if (signature !== expectedSignature) {
+    throwFieldValuationError("INVALID_SESSION_TOKEN", "Sesión de dispositivo inválida");
+  }
+  const payload = decodeBase64UrlJson<{
+    sub?: string;
+    cloudDeviceId?: string;
+    deviceFingerprintHash?: string;
+    exp?: number;
+    tokenType?: string;
+  }>(encodedPayload);
+  const nowEpoch = Math.floor(Date.now() / 1000);
+  if (
+    payload.tokenType !== "device_session" ||
+    typeof payload.sub !== "string" ||
+    typeof payload.exp !== "number" ||
+    payload.exp <= nowEpoch
+  ) {
+    throwFieldValuationError("INVALID_SESSION_TOKEN", "Sesión de dispositivo inválida o expirada");
+  }
+  if (
+    payload.sub !== expected.createdByFieldUserId ||
+    payload.cloudDeviceId !== expected.cloudDeviceId ||
+    payload.deviceFingerprintHash !== expected.deviceFingerprintHash
+  ) {
+    throwFieldValuationError("INVALID_SESSION_TOKEN", "Sesión de dispositivo inválida");
+  }
 }
 
 async function scanFieldDevices(): Promise<FieldDeviceItem[]> {
@@ -169,6 +281,7 @@ async function handlePushMobileValuation(event: FieldHandlerEvent): Promise<Push
   const sourceUpdatedAt = requireString(args.sourceUpdatedAt, "sourceUpdatedAt");
   const cloudDeviceId = requireString(args.cloudDeviceId, "cloudDeviceId");
   const deviceFingerprintHash = requireString(args.deviceFingerprintHash, "deviceFingerprintHash");
+  const sessionToken = requireString(args.sessionToken, "sessionToken");
   const providerName = optionalString(args.providerName);
   const observaciones = optionalString(args.observaciones);
   const fieldDeviceLabel = optionalString(args.fieldDeviceLabel);
@@ -191,10 +304,25 @@ async function handlePushMobileValuation(event: FieldHandlerEvent): Promise<Push
   } catch {
     throwFieldValuationError("INVALID_FINGERPRINT", "Formato de identificador de dispositivo inválido");
   }
+  verifyDeviceSessionToken(sessionToken, {
+    cloudDeviceId,
+    deviceFingerprintHash,
+    createdByFieldUserId,
+  });
 
   const existing = await findValuationByMobileId(mobileId);
   const nowIso = new Date().toISOString();
   if (existing) {
+    await writeAuditLogSafe({
+      entityType: "valuation_sync",
+      entityId: existing.id,
+      action: "pushMobileValuation_idempotent",
+      userId: createdByFieldUserId,
+      payload: {
+        mobileId,
+        cloudDeviceId,
+      },
+    });
     return {
       cloudValuationId: existing.id,
       mobileId,
@@ -245,6 +373,17 @@ async function handlePushMobileValuation(event: FieldHandlerEvent): Promise<Push
       ConditionExpression: "attribute_not_exists(id)",
     })
   );
+  await writeAuditLogSafe({
+    entityType: "valuation_sync",
+    entityId: cloudId,
+    action: "pushMobileValuation_synced",
+    userId: createdByFieldUserId,
+    payload: {
+      mobileId,
+      cloudDeviceId,
+      alreadyExisted: false,
+    },
+  });
 
   return {
     cloudValuationId: cloudId,
