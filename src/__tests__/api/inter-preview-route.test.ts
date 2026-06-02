@@ -160,7 +160,7 @@ describe("GET /api/inter/preview JWT hardening", () => {
         "cognito:groups": ["admin"],
       },
     });
-    const [encodedHeader, _encodedPayload, encodedSignature] = originalToken.split(".");
+    const [encodedHeader, , encodedSignature] = originalToken.split(".");
     const tamperedPayload = base64UrlEncode(
       JSON.stringify({
         iss: issuer,

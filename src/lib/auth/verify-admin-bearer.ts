@@ -1,4 +1,9 @@
-import { createPublicKey, createVerify, type KeyObject } from "node:crypto";
+import {
+  createPublicKey,
+  createVerify,
+  type JsonWebKey,
+  type KeyObject,
+} from "node:crypto";
 import amplifyOutputs from "../../../amplify_outputs.json";
 import { isAdmin } from "./cognito-groups";
 
