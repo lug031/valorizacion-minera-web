@@ -6,6 +6,8 @@ import { staffUsers } from "./functions/staff-users/resource";
 import { fieldUsers } from "./functions/field-users/resource";
 import { fieldDevices } from "./functions/field-devices/resource";
 import { fieldValuations } from "./functions/field-valuations/resource";
+import { auditLogs } from "./functions/audit-logs/resource";
+import { mobileConfig } from "./functions/mobile-config/resource";
 
 const backend = defineBackend({
   auth,
@@ -14,6 +16,8 @@ const backend = defineBackend({
   fieldUsers,
   fieldDevices,
   fieldValuations,
+  auditLogs,
+  mobileConfig,
 });
 
 const userPool = backend.auth.resources.userPool;
@@ -21,6 +25,8 @@ const staffLambda = backend.staffUsers.resources.lambda;
 const fieldLambda = backend.fieldUsers.resources.lambda;
 const fieldDeviceLambda = backend.fieldDevices.resources.lambda;
 const fieldValuationLambda = backend.fieldValuations.resources.lambda;
+const auditLogsLambda = backend.auditLogs.resources.lambda;
+const mobileConfigLambda = backend.mobileConfig.resources.lambda;
 
 /** Permisos Cognito sin enlazar la función al stack auth (evita dependencia circular auth↔data). */
 staffLambda.addToRolePolicy(
@@ -49,6 +55,15 @@ backend.data.resources.tables.EnrollmentToken.grantReadWriteData(fieldDeviceLamb
 backend.data.resources.tables.FieldDevice.grantReadData(fieldValuationLambda);
 backend.data.resources.tables.FieldUser.grantReadData(fieldValuationLambda);
 backend.data.resources.tables.Valuation.grantReadWriteData(fieldValuationLambda);
+backend.data.resources.tables.AuditLog.grantWriteData(fieldDeviceLambda);
+backend.data.resources.tables.AuditLog.grantWriteData(fieldValuationLambda);
+backend.data.resources.tables.AuditLog.grantReadData(auditLogsLambda);
+backend.data.resources.tables.FieldDevice.grantReadData(mobileConfigLambda);
+backend.data.resources.tables.MaterialType.grantReadData(mobileConfigLambda);
+backend.data.resources.tables.MaquilaRange.grantReadData(mobileConfigLambda);
+backend.data.resources.tables.Provider.grantReadData(mobileConfigLambda);
+backend.data.resources.tables.ProviderDefaults.grantReadData(mobileConfigLambda);
+backend.data.resources.tables.AppSettings.grantReadData(mobileConfigLambda);
 
 backend.staffUsers.addEnvironment("AMPLIFY_AUTH_USERPOOL_ID", userPool.userPoolId);
 backend.staffUsers.addEnvironment(
@@ -73,6 +88,10 @@ backend.fieldDevices.addEnvironment(
   "ENROLLMENTTOKEN_TABLE_NAME",
   backend.data.resources.tables.EnrollmentToken.tableName
 );
+backend.fieldDevices.addEnvironment(
+  "AUDITLOG_TABLE_NAME",
+  backend.data.resources.tables.AuditLog.tableName
+);
 
 backend.fieldValuations.addEnvironment(
   "VALUATION_TABLE_NAME",
@@ -85,4 +104,38 @@ backend.fieldValuations.addEnvironment(
 backend.fieldValuations.addEnvironment(
   "FIELDUSER_TABLE_NAME",
   backend.data.resources.tables.FieldUser.tableName
+);
+backend.fieldValuations.addEnvironment(
+  "AUDITLOG_TABLE_NAME",
+  backend.data.resources.tables.AuditLog.tableName
+);
+
+backend.auditLogs.addEnvironment(
+  "AUDITLOG_TABLE_NAME",
+  backend.data.resources.tables.AuditLog.tableName
+);
+
+backend.mobileConfig.addEnvironment(
+  "FIELDDEVICE_TABLE_NAME",
+  backend.data.resources.tables.FieldDevice.tableName
+);
+backend.mobileConfig.addEnvironment(
+  "MATERIALTYPE_TABLE_NAME",
+  backend.data.resources.tables.MaterialType.tableName
+);
+backend.mobileConfig.addEnvironment(
+  "MAQUILARANGE_TABLE_NAME",
+  backend.data.resources.tables.MaquilaRange.tableName
+);
+backend.mobileConfig.addEnvironment(
+  "PROVIDER_TABLE_NAME",
+  backend.data.resources.tables.Provider.tableName
+);
+backend.mobileConfig.addEnvironment(
+  "PROVIDERDEFAULTS_TABLE_NAME",
+  backend.data.resources.tables.ProviderDefaults.tableName
+);
+backend.mobileConfig.addEnvironment(
+  "APPSETTINGS_TABLE_NAME",
+  backend.data.resources.tables.AppSettings.tableName
 );

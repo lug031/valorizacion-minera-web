@@ -630,14 +630,7 @@ const schema = a.schema({
       payloadJson: a.string(),
       userId: a.string(),
     })
-    .secondaryIndexes((index) => [
-      index("entityType").sortKeys(["createdAt"]),
-      index("userId").sortKeys(["createdAt"]),
-      index("action").sortKeys(["createdAt"]),
-    ])
     .authorization((allow) => [
-      allow.resource(fieldDevices).to(["create"]),
-      allow.resource(fieldValuations).to(["create"]),
       allow.groups(["admin"]).to(["create", "read"]),
       allow.groups(["supervisor"]).to(["read"]),
     ]),
