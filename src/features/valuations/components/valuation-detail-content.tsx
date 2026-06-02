@@ -11,6 +11,7 @@ import { tryParseSnapshot } from "@/lib/valuation/try-parse-snapshot";
 import { formatApiError } from "@/lib/errors/format-api-error";
 import { formatDisplayDate, formatDisplayDateTime, syncStatusLabel } from "@/lib/valuation/format";
 import { formatValuationDevice, formatValuationOperator } from "@/lib/valuation/display";
+import { ExportValuationPdfButton } from "@/features/valuations/components/export-valuation-pdf-button";
 
 interface Props {
   id: string;
@@ -65,9 +66,14 @@ export function ValuationDetailContent({ id }: Props) {
                 {data.providerName ? ` · ${data.providerName}` : ""}
               </p>
             </div>
-            <Badge className="border-slate-200 bg-slate-50 text-slate-700">
-              {syncStatusLabel(data.syncStatus)}
-            </Badge>
+            <div className="flex flex-col items-end gap-2">
+              <Badge className="border-slate-200 bg-slate-50 text-slate-700">
+                {syncStatusLabel(data.syncStatus)}
+              </Badge>
+              {snapshot ? (
+                <ExportValuationPdfButton record={data} snapshot={snapshot} />
+              ) : null}
+            </div>
           </div>
         </CardHeader>
         <CardContent className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
