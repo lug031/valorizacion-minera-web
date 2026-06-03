@@ -16,6 +16,7 @@ import {
   formatEnrollmentCodeForDisplay,
   generateEnrollmentCode,
   hashEnrollmentCode,
+  hashUsageExtensionCode,
   normalizeEnrollmentCode,
   verifyMobilePassword,
 } from "./enrollment-crypto";
@@ -40,7 +41,10 @@ const MAX_ACTIVE_DEVICES: Record<FieldRole, number> = {
   admin: 2,
 };
 
-const DEFAULT_GRACE_DAYS_OFFLINE = 7;
+const DEFAULT_GRACE_DAYS_OFFLINE = 1;
+const DEFAULT_TRIAL_LIMIT_MINUTES = 120;
+const USAGE_EXTENSION_CODE_TTL_MS = 24 * 60 * 60 * 1000;
+const USAGE_EXTENSION_CODE_LENGTH = 8;
 const ENROLLMENT_CODE_TTL_MS = 72 * 60 * 60 * 1000;
 const ENROLLMENT_CODE_LENGTH = 8;
 const MAX_ACTIVATION_ATTEMPTS = 5;
@@ -70,6 +74,12 @@ function fieldUserTableName(): string {
 function enrollmentTokenTableName(): string {
   const name = env.ENROLLMENTTOKEN_TABLE_NAME;
   if (!name) throw new Error("Tabla EnrollmentToken no configurada");
+  return name;
+}
+
+function usageExtensionTokenTableName(): string {
+  const name = env.USAGEEXTENSIONTOKEN_TABLE_NAME;
+  if (!name) throw new Error("Tabla UsageExtensionToken no configurada");
   return name;
 }
 
@@ -208,6 +218,8 @@ type FieldUserItem = {
   mobilePasswordHash: string;
 };
 
+type DeviceUsagePolicy = "standard" | "trial";
+
 type FieldDeviceItem = {
   id: string;
   fieldUserId: string;
@@ -216,6 +228,9 @@ type FieldDeviceItem = {
   isBlocked: boolean;
   validUntil?: string | null;
   graceDaysOffline: number;
+  usagePolicy?: DeviceUsagePolicy | null;
+  trialLimitMinutes?: number | null;
+  usageQuotaResetAt?: string | null;
   lastSeenAt?: string | null;
   platform?: string | null;
   appVersion?: string | null;
@@ -238,6 +253,33 @@ type EnrollmentTokenItem = {
   lastActivationAttemptAt?: string | null;
   createdAt: string;
   updatedAt: string;
+};
+
+type UsageExtensionTokenItem = {
+  id: string;
+  fieldDeviceId: string;
+  codeHash: string;
+  grantMinutes: number;
+  expiresAt: string;
+  consumedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type UsageExtensionCodeResult = {
+  fieldDeviceId: string;
+  extensionCode: string;
+  expiresAt: string;
+  grantMinutes: number;
+  codeLength: number;
+  singleUse: boolean;
+};
+
+type UsageExtensionRedeemResult = {
+  cloudDeviceId: string;
+  usageQuotaResetAt: string;
+  grantMinutes: number;
+  serverTime: string;
 };
 
 function normalizeUsername(username: string): string {
@@ -273,6 +315,33 @@ async function scanFieldDevices(): Promise<FieldDeviceItem[]> {
 async function scanEnrollmentTokens(): Promise<EnrollmentTokenItem[]> {
   const res = await doc.send(new ScanCommand({ TableName: enrollmentTokenTableName() }));
   return (res.Items ?? []) as EnrollmentTokenItem[];
+}
+
+async function scanUsageExtensionTokens(): Promise<UsageExtensionTokenItem[]> {
+  const res = await doc.send(new ScanCommand({ TableName: usageExtensionTokenTableName() }));
+  return (res.Items ?? []) as UsageExtensionTokenItem[];
+}
+
+function resolveUsagePolicy(trialMode: unknown): DeviceUsagePolicy {
+  return trialMode === true ? "trial" : "standard";
+}
+
+function deviceUsageFieldsForAssign(
+  usagePolicy: DeviceUsagePolicy,
+  nowIso: string
+): Pick<FieldDeviceItem, "usagePolicy" | "trialLimitMinutes" | "usageQuotaResetAt"> {
+  if (usagePolicy === "trial") {
+    return {
+      usagePolicy: "trial",
+      trialLimitMinutes: DEFAULT_TRIAL_LIMIT_MINUTES,
+      usageQuotaResetAt: nowIso,
+    };
+  }
+  return {
+    usagePolicy: "standard",
+    trialLimitMinutes: null,
+    usageQuotaResetAt: null,
+  };
 }
 
 async function getFieldUserById(id: string): Promise<FieldUserItem> {
@@ -414,6 +483,9 @@ function toFieldDeviceRecord(
     isBlocked: device.isBlocked,
     validUntil: device.validUntil ?? null,
     graceDaysOffline: device.graceDaysOffline,
+    usagePolicy: device.usagePolicy ?? "standard",
+    trialLimitMinutes: device.trialLimitMinutes ?? null,
+    usageQuotaResetAt: device.usageQuotaResetAt ?? null,
     lastSeenAt: device.lastSeenAt ?? null,
     platform: device.platform ?? null,
     appVersion: device.appVersion ?? null,
@@ -455,6 +527,7 @@ async function handleAssign(event: FieldHandlerEvent): Promise<FieldDeviceRecord
   const metadataJson =
     typeof args.metadataJson === "string" ? args.metadataJson.trim() || null : null;
   const validUntil = parseOptionalIsoDate(args.validUntil, "Fecha de validez");
+  const usagePolicy = resolveUsagePolicy(args.trialMode);
 
   if (!fieldUserId) throw new Error("Debe seleccionar un usuario de campo");
 
@@ -470,6 +543,7 @@ async function handleAssign(event: FieldHandlerEvent): Promise<FieldDeviceRecord
   assertDeviceQuota(fieldUser, devices);
 
   const now = new Date().toISOString();
+  const usageFields = deviceUsageFieldsForAssign(usagePolicy, now);
   const device: FieldDeviceItem = {
     id: randomUUID(),
     fieldUserId,
@@ -478,6 +552,7 @@ async function handleAssign(event: FieldHandlerEvent): Promise<FieldDeviceRecord
     isBlocked: false,
     validUntil,
     graceDaysOffline: DEFAULT_GRACE_DAYS_OFFLINE,
+    ...usageFields,
     lastSeenAt: null,
     platform: null,
     appVersion: null,
@@ -506,10 +581,221 @@ async function handleAssign(event: FieldHandlerEvent): Promise<FieldDeviceRecord
       status: device.status,
       validUntil,
       deviceLabel,
+      usagePolicy: device.usagePolicy,
     },
   });
 
   return toFieldDeviceRecord(device, fieldUser);
+}
+
+async function handleGenerateUsageExtensionCode(
+  event: FieldHandlerEvent
+): Promise<UsageExtensionCodeResult> {
+  const fieldDeviceId = String(event.arguments.fieldDeviceId ?? "").trim();
+  if (!fieldDeviceId) throwFieldDeviceError("DEVICE_NOT_FOUND", "Dispositivo no encontrado");
+
+  const device = await getFieldDeviceById(fieldDeviceId);
+  if (device.usagePolicy !== "trial") {
+    throwFieldDeviceError(
+      "DEVICE_NOT_TRIAL",
+      "Solo dispositivos en modo prueba pueden recibir códigos de extensión de uso"
+    );
+  }
+  if (device.status !== "enrolled") {
+    throwFieldDeviceError("DEVICE_NOT_FOUND", "El dispositivo debe estar activado");
+  }
+  if (device.isBlocked) {
+    throwFieldDeviceError("DEVICE_BLOCKED", "El dispositivo está bloqueado por administración");
+  }
+
+  const nowMs = Date.now();
+  const nowIso = new Date(nowMs).toISOString();
+  const normalizedCode = normalizeEnrollmentCode(generateEnrollmentCode(USAGE_EXTENSION_CODE_LENGTH));
+  const expiresAt = new Date(nowMs + USAGE_EXTENSION_CODE_TTL_MS).toISOString();
+  const grantMinutes = device.trialLimitMinutes ?? DEFAULT_TRIAL_LIMIT_MINUTES;
+
+  const token: UsageExtensionTokenItem = {
+    id: randomUUID(),
+    fieldDeviceId: device.id,
+    codeHash: hashUsageExtensionCode(normalizedCode),
+    grantMinutes,
+    expiresAt,
+    consumedAt: null,
+    createdAt: nowIso,
+    updatedAt: nowIso,
+  };
+
+  await doc.send(
+    new PutCommand({
+      TableName: usageExtensionTokenTableName(),
+      Item: token,
+    })
+  );
+
+  await writeAuditLogSafe({
+    entityType: "field_device",
+    entityId: device.id,
+    action: "generateManagedUsageExtensionCode",
+    userId: device.fieldUserId,
+    payload: { grantMinutes, expiresAt },
+  });
+
+  return {
+    fieldDeviceId: device.id,
+    extensionCode: formatEnrollmentCodeForDisplay(normalizedCode),
+    expiresAt,
+    grantMinutes,
+    codeLength: USAGE_EXTENSION_CODE_LENGTH,
+    singleUse: true,
+  };
+}
+
+async function handleResetDeviceUsageQuota(event: FieldHandlerEvent): Promise<FieldDeviceRecord> {
+  const fieldDeviceId = String(event.arguments.fieldDeviceId ?? "").trim();
+  if (!fieldDeviceId) throwFieldDeviceError("DEVICE_NOT_FOUND", "Dispositivo no encontrado");
+
+  const device = await getFieldDeviceById(fieldDeviceId);
+  if (device.usagePolicy !== "trial") {
+    throwFieldDeviceError("DEVICE_NOT_TRIAL", "Solo dispositivos en modo prueba tienen cupo de uso");
+  }
+  if (device.status === "revoked") {
+    throwFieldDeviceError("DEVICE_ALREADY_REVOKED", "No se puede reiniciar un dispositivo revocado");
+  }
+
+  const fieldUser = await getFieldUserById(device.fieldUserId);
+  const nowIso = new Date().toISOString();
+
+  await doc.send(
+    new UpdateCommand({
+      TableName: fieldDeviceTableName(),
+      Key: { id: device.id },
+      UpdateExpression: "SET usageQuotaResetAt = :resetAt, updatedAt = :updatedAt",
+      ExpressionAttributeValues: {
+        ":resetAt": nowIso,
+        ":updatedAt": nowIso,
+      },
+    })
+  );
+
+  await writeAuditLogSafe({
+    entityType: "field_device",
+    entityId: device.id,
+    action: "resetManagedDeviceUsageQuota",
+    userId: fieldUser.id,
+    payload: { usageQuotaResetAt: nowIso },
+  });
+
+  const tokens = await scanEnrollmentTokens();
+  const activeToken = findActiveTokenForDevice(tokens, device.id, Date.now());
+  return toFieldDeviceRecord(
+    { ...device, usageQuotaResetAt: nowIso, updatedAt: nowIso },
+    fieldUser,
+    activeToken
+  );
+}
+
+async function handleRedeemUsageExtensionCode(
+  event: FieldHandlerEvent
+): Promise<UsageExtensionRedeemResult> {
+  const extensionCodeRaw = String(event.arguments.extensionCode ?? "");
+  const cloudDeviceId = String(event.arguments.cloudDeviceId ?? "").trim();
+  const deviceFingerprintHash = String(event.arguments.deviceFingerprintHash ?? "").trim();
+  const nowMs = Date.now();
+  const nowIso = new Date(nowMs).toISOString();
+
+  if (!extensionCodeRaw.trim()) {
+    throwFieldDeviceError("INVALID_USAGE_EXTENSION_CODE", "Código de extensión inválido");
+  }
+  if (!cloudDeviceId) throwFieldDeviceError("DEVICE_NOT_FOUND", "Dispositivo no encontrado");
+  try {
+    assertValidFingerprintHash(deviceFingerprintHash);
+  } catch {
+    throwFieldDeviceError("INVALID_FINGERPRINT", "Formato de identificador de dispositivo inválido");
+  }
+
+  const device = await getFieldDeviceById(cloudDeviceId);
+  if (device.usagePolicy !== "trial") {
+    throwFieldDeviceError("DEVICE_NOT_TRIAL", "Este dispositivo no está en modo prueba");
+  }
+  if (device.status !== "enrolled") {
+    throwFieldDeviceError("DEVICE_NOT_FOUND", "El dispositivo no está activado");
+  }
+  if (device.deviceFingerprintHash !== deviceFingerprintHash) {
+    throwFieldDeviceError("INVALID_FINGERPRINT", "El identificador del dispositivo no coincide");
+  }
+
+  const normalizedCode = normalizeEnrollmentCode(extensionCodeRaw);
+  const codeHash = hashUsageExtensionCode(normalizedCode);
+  const tokens = await scanUsageExtensionTokens();
+  const token = tokens.find(
+    (row) =>
+      row.fieldDeviceId === device.id &&
+      row.codeHash === codeHash &&
+      !row.consumedAt &&
+      new Date(row.expiresAt).getTime() > nowMs
+  );
+
+  if (!token) {
+    const expired = tokens.find(
+      (row) =>
+        row.fieldDeviceId === device.id &&
+        row.codeHash === codeHash &&
+        !row.consumedAt &&
+        new Date(row.expiresAt).getTime() <= nowMs
+    );
+    if (expired) {
+      throwFieldDeviceError("USAGE_EXTENSION_CODE_EXPIRED", "El código de extensión expiró");
+    }
+    const used = tokens.find(
+      (row) => row.fieldDeviceId === device.id && row.codeHash === codeHash && row.consumedAt
+    );
+    if (used) {
+      throwFieldDeviceError("USAGE_EXTENSION_CODE_USED", "El código de extensión ya fue utilizado");
+    }
+    throwFieldDeviceError("INVALID_USAGE_EXTENSION_CODE", "Código de extensión inválido");
+  }
+
+  await doc.send(
+    new UpdateCommand({
+      TableName: usageExtensionTokenTableName(),
+      Key: { id: token.id },
+      UpdateExpression: "SET consumedAt = :consumedAt, updatedAt = :updatedAt",
+      ExpressionAttributeValues: {
+        ":consumedAt": nowIso,
+        ":updatedAt": nowIso,
+      },
+    })
+  );
+
+  await doc.send(
+    new UpdateCommand({
+      TableName: fieldDeviceTableName(),
+      Key: { id: device.id },
+      UpdateExpression: "SET usageQuotaResetAt = :resetAt, updatedAt = :updatedAt",
+      ExpressionAttributeValues: {
+        ":resetAt": nowIso,
+        ":updatedAt": nowIso,
+      },
+    })
+  );
+
+  await writeAuditLogSafe({
+    entityType: "field_device",
+    entityId: device.id,
+    action: "redeemUsageExtensionCode",
+    userId: device.fieldUserId,
+    payload: {
+      grantMinutes: token.grantMinutes,
+      usageQuotaResetAt: nowIso,
+    },
+  });
+
+  return {
+    cloudDeviceId: device.id,
+    usageQuotaResetAt: nowIso,
+    grantMinutes: token.grantMinutes,
+    serverTime: nowIso,
+  };
 }
 
 async function handleGenerateEnrollmentCode(event: FieldHandlerEvent): Promise<EnrollmentCodeResult> {
@@ -670,6 +956,8 @@ async function handleEnroll(event: FieldHandlerEvent): Promise<FieldDeviceEnroll
   assertDeviceQuota(fieldUser, devices, device.id);
   assertFingerprintUnique(devices, deviceFingerprintHash, device.id);
   const mergedDeviceLabel = deviceLabelArg ?? device.deviceLabel ?? null;
+  const usageQuotaResetAtOnEnroll =
+    device.usagePolicy === "trial" ? nowIso : (device.usageQuotaResetAt ?? null);
 
   try {
     await doc.send(
@@ -697,7 +985,7 @@ async function handleEnroll(event: FieldHandlerEvent): Promise<FieldDeviceEnroll
               TableName: fieldDeviceTableName(),
               Key: { id: device.id },
               UpdateExpression:
-                "SET #status = :enrolled, deviceFingerprintHash = :hash, platform = :platform, appVersion = :appVersion, deviceLabel = :deviceLabel, enrolledAt = :enrolledAt, lastSeenAt = :lastSeenAt, updatedAt = :updatedAt",
+                "SET #status = :enrolled, deviceFingerprintHash = :hash, platform = :platform, appVersion = :appVersion, deviceLabel = :deviceLabel, enrolledAt = :enrolledAt, lastSeenAt = :lastSeenAt, usageQuotaResetAt = :usageQuotaResetAt, updatedAt = :updatedAt",
               ConditionExpression: "#status = :pending AND isBlocked = :false",
               ExpressionAttributeNames: { "#status": "status" },
               ExpressionAttributeValues: {
@@ -710,6 +998,7 @@ async function handleEnroll(event: FieldHandlerEvent): Promise<FieldDeviceEnroll
                 ":deviceLabel": mergedDeviceLabel,
                 ":enrolledAt": nowIso,
                 ":lastSeenAt": nowIso,
+                ":usageQuotaResetAt": usageQuotaResetAtOnEnroll,
                 ":updatedAt": nowIso,
               },
             },
@@ -736,6 +1025,7 @@ async function handleEnroll(event: FieldHandlerEvent): Promise<FieldDeviceEnroll
     deviceLabel: mergedDeviceLabel,
     enrolledAt: nowIso,
     lastSeenAt: nowIso,
+    usageQuotaResetAt: usageQuotaResetAtOnEnroll,
     updatedAt: nowIso,
   };
   await writeAuditLogSafe({
@@ -759,6 +1049,9 @@ async function handleEnroll(event: FieldHandlerEvent): Promise<FieldDeviceEnroll
       isBlocked: false,
       validUntil: enrolledDevice.validUntil ?? null,
       graceDaysOffline: enrolledDevice.graceDaysOffline,
+      usagePolicy: enrolledDevice.usagePolicy ?? "standard",
+      trialLimitMinutes: enrolledDevice.trialLimitMinutes ?? null,
+      usageQuotaResetAt: enrolledDevice.usageQuotaResetAt ?? nowIso,
       enrolledAt: nowIso,
       platform,
       appVersion,
@@ -826,6 +1119,9 @@ async function handleSyncStatus(event: FieldHandlerEvent): Promise<FieldDeviceSt
       isBlocked: device.isBlocked,
       validUntil: device.validUntil ?? null,
       graceDaysOffline: device.graceDaysOffline,
+      usagePolicy: device.usagePolicy ?? "standard",
+      trialLimitMinutes: device.trialLimitMinutes ?? null,
+      usageQuotaResetAt: device.usageQuotaResetAt ?? null,
       revokedAt: device.revokedAt ?? nowIso,
       fieldUserIsActive: fieldUser.isActive,
       lastSeenAt: device.lastSeenAt ?? null,
@@ -878,6 +1174,9 @@ async function handleSyncStatus(event: FieldHandlerEvent): Promise<FieldDeviceSt
     isBlocked: device.isBlocked,
     validUntil: device.validUntil ?? null,
     graceDaysOffline: device.graceDaysOffline,
+    usagePolicy: device.usagePolicy ?? "standard",
+    trialLimitMinutes: device.trialLimitMinutes ?? null,
+    usageQuotaResetAt: device.usageQuotaResetAt ?? null,
     revokedAt: device.revokedAt ?? null,
     fieldUserIsActive: fieldUser.isActive,
     lastSeenAt: nowIso,
@@ -1148,6 +1447,8 @@ export const handler: AppSyncResolverHandler<
   | FieldDeviceEnrollmentResult
   | FieldDeviceStatusSyncResult
   | DeviceSessionTokenResult
+  | UsageExtensionCodeResult
+  | UsageExtensionRedeemResult
   | null
 > = async (event) => {
   try {
@@ -1172,6 +1473,12 @@ export const handler: AppSyncResolverHandler<
         return await handleUpdate(fieldEvent);
       case "revokeManagedFieldDevice":
         return await handleRevoke(fieldEvent);
+      case "generateManagedUsageExtensionCode":
+        return await handleGenerateUsageExtensionCode(fieldEvent);
+      case "resetManagedDeviceUsageQuota":
+        return await handleResetDeviceUsageQuota(fieldEvent);
+      case "redeemUsageExtensionCode":
+        return await handleRedeemUsageExtensionCode(fieldEvent);
       default:
         throw new Error(`Operación no soportada: ${field}`);
     }

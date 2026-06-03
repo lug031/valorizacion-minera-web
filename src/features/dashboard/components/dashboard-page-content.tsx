@@ -8,6 +8,7 @@ import { useDashboardCounts } from "@/features/dashboard/hooks/use-dashboard-cou
 import { formatDashboardCount } from "@/services/dashboard.service";
 import { formatApiError } from "@/lib/errors/format-api-error";
 import { cn } from "@/lib/utils";
+import { isProvidersEnabledForV1, isValuationsEnabledForV1 } from "@/config/v1-features";
 
 type DashboardModule = {
   title: string;
@@ -103,6 +104,16 @@ const DASHBOARD_MODULES: DashboardModule[] = [
   },
 ];
 
+function isDashboardModuleVisible(href: string): boolean {
+  if (href === "/admin/proveedores") return isProvidersEnabledForV1();
+  if (href === "/admin/valorizaciones") return isValuationsEnabledForV1();
+  return true;
+}
+
+const VISIBLE_DASHBOARD_MODULES = DASHBOARD_MODULES.filter((item) =>
+  isDashboardModuleVisible(item.href)
+);
+
 function ModuleStatCard({
   title,
   description,
@@ -156,8 +167,8 @@ export function DashboardPageContent() {
 
   const filteredModules = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return DASHBOARD_MODULES;
-    return DASHBOARD_MODULES.filter(
+    if (!q) return VISIBLE_DASHBOARD_MODULES;
+    return VISIBLE_DASHBOARD_MODULES.filter(
       (item) =>
         item.title.toLowerCase().includes(q) || item.description.toLowerCase().includes(q)
     );

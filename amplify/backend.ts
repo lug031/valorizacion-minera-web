@@ -52,6 +52,7 @@ backend.data.resources.tables.FieldUser.grantReadWriteData(fieldLambda);
 backend.data.resources.tables.FieldUser.grantReadData(fieldDeviceLambda);
 backend.data.resources.tables.FieldDevice.grantReadWriteData(fieldDeviceLambda);
 backend.data.resources.tables.EnrollmentToken.grantReadWriteData(fieldDeviceLambda);
+backend.data.resources.tables.UsageExtensionToken.grantReadWriteData(fieldDeviceLambda);
 backend.data.resources.tables.FieldDevice.grantReadData(fieldValuationLambda);
 backend.data.resources.tables.FieldUser.grantReadData(fieldValuationLambda);
 backend.data.resources.tables.Valuation.grantReadWriteData(fieldValuationLambda);
@@ -87,6 +88,10 @@ backend.fieldDevices.addEnvironment(
 backend.fieldDevices.addEnvironment(
   "ENROLLMENTTOKEN_TABLE_NAME",
   backend.data.resources.tables.EnrollmentToken.tableName
+);
+backend.fieldDevices.addEnvironment(
+  "USAGEEXTENSIONTOKEN_TABLE_NAME",
+  backend.data.resources.tables.UsageExtensionToken.tableName
 );
 backend.fieldDevices.addEnvironment(
   "AUDITLOG_TABLE_NAME",

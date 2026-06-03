@@ -37,6 +37,8 @@ const emptyAssign: AssignFieldDeviceFormInput = {
   fieldUserId: "",
   deviceLabel: "",
   validUntil: "",
+  validUntilTime: "",
+  trialMode: false,
   notes: "",
 };
 
@@ -58,7 +60,13 @@ export function FieldDeviceFormDialog({
 
   const updateForm = useForm<UpdateFieldDeviceFormInput, unknown, UpdateFieldDeviceFormValues>({
     resolver: zodResolver(updateFieldDeviceSchema),
-    defaultValues: { isBlocked: false, deviceLabel: "", validUntil: "", notes: "" },
+    defaultValues: {
+      isBlocked: false,
+      deviceLabel: "",
+      validUntil: "",
+      validUntilTime: "",
+      notes: "",
+    },
   });
 
   useEffect(() => {
@@ -73,6 +81,8 @@ export function FieldDeviceFormDialog({
   if (!open) return null;
 
   const activeUsers = fieldUsers.filter((u) => u.isActive !== false);
+  const assignValidUntil = assignForm.watch("validUntil");
+  const updateValidUntil = updateForm.watch("validUntil");
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -125,11 +135,43 @@ export function FieldDeviceFormDialog({
 
             <div className="space-y-2">
               <Label htmlFor="assign-validUntil">Válido hasta (opcional)</Label>
-              <Input
-                id="assign-validUntil"
-                type="date"
+              <p className="text-xs text-muted-foreground">
+                Horario Perú (PET). Sin hora = hasta las 23:59 de ese día. La gracia offline del dispositivo es 1 día fijo.
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Input
+                  id="assign-validUntil"
+                  type="date"
+                  disabled={readOnly || saving}
+                  {...assignForm.register("validUntil")}
+                />
+                <Input
+                  id="assign-validUntilTime"
+                  type="time"
+                  placeholder="HH:MM"
+                  disabled={readOnly || saving || !assignValidUntil?.trim()}
+                  {...assignForm.register("validUntilTime")}
+                />
+              </div>
+              {assignForm.formState.errors.validUntilTime ? (
+                <p className="text-sm text-destructive">
+                  {assignForm.formState.errors.validUntilTime.message}
+                </p>
+              ) : null}
+            </div>
+
+            <div className="flex items-center justify-between rounded-md border p-3">
+              <div>
+                <Label htmlFor="assign-trialMode">Modo prueba (límite 2 h de uso)</Label>
+                <p className="text-xs text-muted-foreground">
+                  Tras 2 h en primer plano se bloquea hasta un código de extensión generado por usted.
+                </p>
+              </div>
+              <Switch
+                id="assign-trialMode"
+                checked={assignForm.watch("trialMode") === true}
                 disabled={readOnly || saving}
-                {...assignForm.register("validUntil")}
+                onCheckedChange={(v) => assignForm.setValue("trialMode", v)}
               />
             </div>
 
@@ -215,12 +257,29 @@ export function FieldDeviceFormDialog({
 
             <div className="space-y-2">
               <Label htmlFor="update-validUntil">Válido hasta (opcional)</Label>
-              <Input
-                id="update-validUntil"
-                type="date"
-                disabled={readOnly || saving}
-                {...updateForm.register("validUntil")}
-              />
+              <p className="text-xs text-muted-foreground">
+                Horario Perú (PET). Sin hora = hasta las 23:59 de ese día.
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Input
+                  id="update-validUntil"
+                  type="date"
+                  disabled={readOnly || saving}
+                  {...updateForm.register("validUntil")}
+                />
+                <Input
+                  id="update-validUntilTime"
+                  type="time"
+                  placeholder="HH:MM"
+                  disabled={readOnly || saving || !updateValidUntil?.trim()}
+                  {...updateForm.register("validUntilTime")}
+                />
+              </div>
+              {updateForm.formState.errors.validUntilTime ? (
+                <p className="text-sm text-destructive">
+                  {updateForm.formState.errors.validUntilTime.message}
+                </p>
+              ) : null}
             </div>
 
             <div className="space-y-2">

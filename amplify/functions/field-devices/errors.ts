@@ -14,7 +14,11 @@ export type FieldDeviceErrorCode =
   | "INVALID_FINGERPRINT"
   | "INVALID_SESSION_TOKEN"
   | "INVALID_VALID_UNTIL"
-  | "DEVICE_ALREADY_REVOKED";
+  | "DEVICE_ALREADY_REVOKED"
+  | "DEVICE_NOT_TRIAL"
+  | "INVALID_USAGE_EXTENSION_CODE"
+  | "USAGE_EXTENSION_CODE_EXPIRED"
+  | "USAGE_EXTENSION_CODE_USED";
 
 export class FieldDeviceError extends Error {
   readonly code: FieldDeviceErrorCode;

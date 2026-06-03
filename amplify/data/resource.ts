@@ -13,6 +13,7 @@ import { mobileConfig } from "../functions/mobile-config/resource";
 const staffRoleEnum = a.enum(["admin", "supervisor"]);
 const fieldRoleEnum = a.enum(["admin", "operador"]);
 const fieldDeviceStatusEnum = a.enum(["pending", "enrolled", "revoked"]);
+const deviceUsagePolicyEnum = a.enum(["standard", "trial"]);
 
 const schema = a.schema({
   MaquilaRange: a
@@ -267,6 +268,9 @@ const schema = a.schema({
       isBlocked: a.boolean(),
       validUntil: a.string(),
       graceDaysOffline: a.integer(),
+      usagePolicy: deviceUsagePolicyEnum,
+      trialLimitMinutes: a.integer(),
+      usageQuotaResetAt: a.string(),
       lastSeenAt: a.string(),
       platform: a.string(),
       appVersion: a.string(),
@@ -295,6 +299,19 @@ const schema = a.schema({
       allow.groups(["admin"]).to(["create", "read", "update", "delete"]),
     ]),
 
+  /** Código de un solo uso para reiniciar cupo de uso en modo prueba. */
+  UsageExtensionToken: a
+    .model({
+      fieldDeviceId: a.string().required(),
+      codeHash: a.string().required(),
+      grantMinutes: a.integer().required(),
+      expiresAt: a.string().required(),
+      consumedAt: a.string(),
+    })
+    .authorization((allow) => [
+      allow.groups(["admin"]).to(["create", "read", "update", "delete"]),
+    ]),
+
   FieldDeviceRecord: a.customType({
     id: a.string().required(),
     fieldUserId: a.string().required(),
@@ -306,6 +323,9 @@ const schema = a.schema({
     isBlocked: a.boolean(),
     validUntil: a.string(),
     graceDaysOffline: a.integer(),
+    usagePolicy: deviceUsagePolicyEnum,
+    trialLimitMinutes: a.integer(),
+    usageQuotaResetAt: a.string(),
     lastSeenAt: a.string(),
     platform: a.string(),
     appVersion: a.string(),
@@ -318,6 +338,22 @@ const schema = a.schema({
     activationExpiresAt: a.string(),
     createdAt: a.string(),
     updatedAt: a.string(),
+  }),
+
+  UsageExtensionCodeResult: a.customType({
+    fieldDeviceId: a.string().required(),
+    extensionCode: a.string().required(),
+    expiresAt: a.string().required(),
+    grantMinutes: a.integer().required(),
+    codeLength: a.integer().required(),
+    singleUse: a.boolean().required(),
+  }),
+
+  UsageExtensionRedeemResult: a.customType({
+    cloudDeviceId: a.string().required(),
+    usageQuotaResetAt: a.string().required(),
+    grantMinutes: a.integer().required(),
+    serverTime: a.string().required(),
   }),
 
   EnrollmentCodeResult: a.customType({
@@ -336,6 +372,9 @@ const schema = a.schema({
     isBlocked: a.boolean(),
     validUntil: a.string(),
     graceDaysOffline: a.integer(),
+    usagePolicy: deviceUsagePolicyEnum,
+    trialLimitMinutes: a.integer(),
+    usageQuotaResetAt: a.string(),
     enrolledAt: a.string(),
     platform: a.string(),
     appVersion: a.string(),
@@ -363,6 +402,9 @@ const schema = a.schema({
     isBlocked: a.boolean(),
     validUntil: a.string(),
     graceDaysOffline: a.integer(),
+    usagePolicy: deviceUsagePolicyEnum,
+    trialLimitMinutes: a.integer(),
+    usageQuotaResetAt: a.string(),
     revokedAt: a.string(),
     fieldUserIsActive: a.boolean(),
     lastSeenAt: a.string(),
@@ -389,6 +431,7 @@ const schema = a.schema({
       notes: a.string(),
       metadataJson: a.string(),
       deviceLabel: a.string(),
+      trialMode: a.boolean(),
     })
     .returns(a.ref("FieldDeviceRecord"))
     .authorization((allow) => [allow.groups(["admin"])])
@@ -476,6 +519,35 @@ const schema = a.schema({
     })
     .returns(a.ref("FieldDeviceRecord"))
     .authorization((allow) => [allow.groups(["admin"])])
+    .handler(a.handler.function(fieldDevices)),
+
+  generateManagedUsageExtensionCode: a
+    .mutation()
+    .arguments({
+      fieldDeviceId: a.id().required(),
+    })
+    .returns(a.ref("UsageExtensionCodeResult"))
+    .authorization((allow) => [allow.groups(["admin"])])
+    .handler(a.handler.function(fieldDevices)),
+
+  resetManagedDeviceUsageQuota: a
+    .mutation()
+    .arguments({
+      fieldDeviceId: a.id().required(),
+    })
+    .returns(a.ref("FieldDeviceRecord"))
+    .authorization((allow) => [allow.groups(["admin"])])
+    .handler(a.handler.function(fieldDevices)),
+
+  redeemUsageExtensionCode: a
+    .mutation()
+    .arguments({
+      extensionCode: a.string().required(),
+      cloudDeviceId: a.id().required(),
+      deviceFingerprintHash: a.string().required(),
+    })
+    .returns(a.ref("UsageExtensionRedeemResult"))
+    .authorization((allow) => [allow.publicApiKey()])
     .handler(a.handler.function(fieldDevices)),
 
   Valuation: a

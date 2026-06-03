@@ -9,6 +9,7 @@ export const fieldDevices = defineFunction({
     FIELDDEVICE_TABLE_NAME: "",
     FIELDUSER_TABLE_NAME: "",
     ENROLLMENTTOKEN_TABLE_NAME: "",
+    USAGEEXTENSIONTOKEN_TABLE_NAME: "",
     AUDITLOG_TABLE_NAME: "",
     DEVICE_SESSION_TOKEN_SECRET: "",
   },

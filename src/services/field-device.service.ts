@@ -1,9 +1,11 @@
 import { adminDataClient } from "@/lib/amplify/data-client";
+import { peruLocalDateTimeToIso } from "@/lib/datetime/peru-local";
 import type {
   AssignFieldDeviceFormValues,
   EnrollmentCodeResult,
   FieldDeviceRecord,
   UpdateFieldDeviceFormValues,
+  UsageExtensionCodeResult,
 } from "@/features/field-devices/schemas/field-device.schema";
 
 function mapFieldDevice(row: {
@@ -17,6 +19,9 @@ function mapFieldDevice(row: {
   isBlocked?: boolean | null;
   validUntil?: string | null;
   graceDaysOffline?: number | null;
+  usagePolicy?: "standard" | "trial" | null;
+  trialLimitMinutes?: number | null;
+  usageQuotaResetAt?: string | null;
   lastSeenAt?: string | null;
   platform?: string | null;
   appVersion?: string | null;
@@ -41,6 +46,9 @@ function mapFieldDevice(row: {
     isBlocked: row.isBlocked ?? false,
     validUntil: row.validUntil ?? null,
     graceDaysOffline: row.graceDaysOffline ?? null,
+    usagePolicy: row.usagePolicy ?? "standard",
+    trialLimitMinutes: row.trialLimitMinutes ?? null,
+    usageQuotaResetAt: row.usageQuotaResetAt ?? null,
     lastSeenAt: row.lastSeenAt ?? null,
     platform: row.platform ?? null,
     appVersion: row.appVersion ?? null,
@@ -56,14 +64,11 @@ function mapFieldDevice(row: {
   };
 }
 
-function toIsoDateEndOfDay(dateOnly: string | undefined): string | undefined {
-  const trimmed = dateOnly?.trim();
-  if (!trimmed) return undefined;
-  const date = new Date(`${trimmed}T23:59:59.999Z`);
-  if (Number.isNaN(date.getTime())) {
-    throw new Error("Fecha de validez inválida");
-  }
-  return date.toISOString();
+function toValidUntilIso(
+  dateOnly: string | undefined,
+  timeHm: string | undefined
+): string | undefined {
+  return peruLocalDateTimeToIso(dateOnly, timeHm);
 }
 
 export async function listFieldDevices(): Promise<FieldDeviceRecord[]> {
@@ -79,9 +84,10 @@ export async function assignFieldDevice(
 ): Promise<FieldDeviceRecord> {
   const { data, errors } = await adminDataClient.mutations.assignManagedFieldDevice({
     fieldUserId: values.fieldUserId,
-    validUntil: toIsoDateEndOfDay(values.validUntil),
+    validUntil: toValidUntilIso(values.validUntil, values.validUntilTime),
     deviceLabel: values.deviceLabel?.trim() || undefined,
     notes: values.notes?.trim() || undefined,
+    trialMode: values.trialMode === true,
   });
   if (errors?.length) throw new Error(errors.map((e) => e.message).join("; "));
   if (!data) throw new Error("No se pudo asignar el dispositivo");
@@ -95,7 +101,7 @@ export async function updateFieldDevice(
   const { data, errors } = await adminDataClient.mutations.updateManagedFieldDevice({
     id,
     isBlocked: values.isBlocked,
-    validUntil: toIsoDateEndOfDay(values.validUntil),
+    validUntil: toValidUntilIso(values.validUntil, values.validUntilTime),
     deviceLabel: values.deviceLabel?.trim() || undefined,
     notes: values.notes?.trim() || undefined,
   });
@@ -119,6 +125,33 @@ export async function generateFieldDeviceEnrollmentCode(
     codeLength: data.codeLength ?? 8,
     singleUse: data.singleUse ?? true,
   };
+}
+
+export async function generateUsageExtensionCode(
+  fieldDeviceId: string
+): Promise<UsageExtensionCodeResult> {
+  const { data, errors } = await adminDataClient.mutations.generateManagedUsageExtensionCode({
+    fieldDeviceId,
+  });
+  if (errors?.length) throw new Error(errors.map((e) => e.message).join("; "));
+  if (!data) throw new Error("No se pudo generar el código de extensión");
+  return {
+    fieldDeviceId: data.fieldDeviceId,
+    extensionCode: data.extensionCode,
+    expiresAt: data.expiresAt,
+    grantMinutes: data.grantMinutes ?? 120,
+    codeLength: data.codeLength ?? 8,
+    singleUse: data.singleUse ?? true,
+  };
+}
+
+export async function resetDeviceUsageQuota(fieldDeviceId: string): Promise<FieldDeviceRecord> {
+  const { data, errors } = await adminDataClient.mutations.resetManagedDeviceUsageQuota({
+    fieldDeviceId,
+  });
+  if (errors?.length) throw new Error(errors.map((e) => e.message).join("; "));
+  if (!data) throw new Error("No se pudo reiniciar el cupo de uso");
+  return mapFieldDevice(data);
 }
 
 export async function revokeFieldDevice(id: string): Promise<FieldDeviceRecord> {

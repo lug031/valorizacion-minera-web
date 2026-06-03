@@ -2,7 +2,7 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
-  roots: ['<rootDir>/amplify/functions'],
+  roots: ['<rootDir>/amplify/functions', '<rootDir>/src/__tests__'],
   testMatch: ['**/__tests__/**/*.test.ts'],
   moduleNameMapper: {
     '^\\$amplify/env/field-valuations$':

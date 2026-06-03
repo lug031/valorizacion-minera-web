@@ -4,7 +4,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   assignFieldDevice,
   generateFieldDeviceEnrollmentCode,
+  generateUsageExtensionCode,
   listFieldDevices,
+  resetDeviceUsageQuota,
   revokeFieldDevice,
   updateFieldDevice,
 } from "@/services/field-device.service";
@@ -50,5 +52,15 @@ export function useFieldDeviceMutations() {
     onSuccess: invalidate,
   });
 
-  return { assign, update, revoke, generateCode };
+  const generateUsageCode = useMutation({
+    mutationFn: (fieldDeviceId: string) => generateUsageExtensionCode(fieldDeviceId),
+    onSuccess: invalidate,
+  });
+
+  const resetUsageQuota = useMutation({
+    mutationFn: (fieldDeviceId: string) => resetDeviceUsageQuota(fieldDeviceId),
+    onSuccess: invalidate,
+  });
+
+  return { assign, update, revoke, generateCode, generateUsageCode, resetUsageQuota };
 }

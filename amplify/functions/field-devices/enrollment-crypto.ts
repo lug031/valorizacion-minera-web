@@ -36,6 +36,10 @@ export function hashEnrollmentCode(normalizedCode: string): string {
   return hashSecret(`enrollment:${normalizedCode}`);
 }
 
+export function hashUsageExtensionCode(normalizedCode: string): string {
+  return hashSecret(`usage-ext:${normalizedCode}`);
+}
+
 export function assertValidFingerprintHash(deviceFingerprintHash: string): void {
   if (!FINGERPRINT_HASH_RE.test(deviceFingerprintHash)) {
     throw new Error("INVALID_FINGERPRINT");

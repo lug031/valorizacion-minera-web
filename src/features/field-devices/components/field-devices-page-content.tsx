@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Ban, KeyRound, Pencil, Plus, Smartphone } from "lucide-react";
+import { Ban, KeyRound, Pencil, Plus, Smartphone, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import { useCanWriteAdmin } from "@/providers/auth-provider";
 import { EnrollmentCodeDialog } from "@/features/field-devices/components/enrollment-code-dialog";
+import { UsageExtensionCodeDialog } from "@/features/field-devices/components/usage-extension-code-dialog";
 import { FieldDeviceFormDialog } from "@/features/field-devices/components/field-device-form-dialog";
 import { useFieldDeviceMutations, useFieldDevices } from "@/features/field-devices/hooks/use-field-devices";
 import { useFieldUsers } from "@/features/field-users/hooks/use-field-users";
@@ -23,11 +24,14 @@ import { fieldRoleLabel } from "@/features/field-users/schemas/field-user.schema
 import {
   fieldDeviceStatusLabel,
   maxDevicesForRole,
+  usagePolicyLabel,
   type AssignFieldDeviceFormValues,
   type EnrollmentCodeResult,
   type FieldDeviceRecord,
   type UpdateFieldDeviceFormValues,
+  type UsageExtensionCodeResult,
 } from "@/features/field-devices/schemas/field-device.schema";
+import { formatDateTimePet } from "@/lib/datetime/peru-local";
 import { formatApiError } from "@/lib/errors/format-api-error";
 import { LIST_PAGE_SIZE } from "@/lib/pagination/constants";
 
@@ -35,15 +39,6 @@ function formatDate(value: string | null | undefined) {
   if (!value) return "—";
   try {
     return new Date(value).toLocaleString("es-PE", { dateStyle: "short", timeStyle: "short" });
-  } catch {
-    return value;
-  }
-}
-
-function formatDateOnly(value: string | null | undefined) {
-  if (!value) return "—";
-  try {
-    return new Date(value).toLocaleDateString("es-PE");
   } catch {
     return value;
   }
@@ -61,7 +56,8 @@ export function FieldDevicesPageContent() {
   const canWrite = useCanWriteAdmin();
   const { data, isLoading, error } = useFieldDevices();
   const { data: fieldUsers } = useFieldUsers();
-  const { assign, update, revoke, generateCode } = useFieldDeviceMutations();
+  const { assign, update, revoke, generateCode, generateUsageCode, resetUsageQuota } =
+    useFieldDeviceMutations();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<"assign" | "edit">("assign");
   const [editing, setEditing] = useState<FieldDeviceRecord | null>(null);
@@ -74,6 +70,12 @@ export function FieldDevicesPageContent() {
   const [codeDialogDevice, setCodeDialogDevice] = useState<FieldDeviceRecord | null>(null);
   const [codeDialogResult, setCodeDialogResult] = useState<EnrollmentCodeResult | null>(null);
   const [generatingDeviceId, setGeneratingDeviceId] = useState<string | null>(null);
+  const [usageCodeDialogOpen, setUsageCodeDialogOpen] = useState(false);
+  const [usageCodeDialogDevice, setUsageCodeDialogDevice] = useState<FieldDeviceRecord | null>(null);
+  const [usageCodeDialogResult, setUsageCodeDialogResult] = useState<UsageExtensionCodeResult | null>(
+    null
+  );
+  const [usageGeneratingId, setUsageGeneratingId] = useState<string | null>(null);
 
   const rows = useMemo(() => (data ?? []).slice(0, visibleCount), [data, visibleCount]);
   const totalRows = data?.length ?? 0;
@@ -153,6 +155,30 @@ export function FieldDevicesPageContent() {
     }
   };
 
+  const handleGenerateUsageCode = async (row: FieldDeviceRecord) => {
+    setFormError(null);
+    setUsageGeneratingId(row.id);
+    try {
+      const result = await generateUsageCode.mutateAsync(row.id);
+      setUsageCodeDialogDevice(row);
+      setUsageCodeDialogResult(result);
+      setUsageCodeDialogOpen(true);
+    } catch (e) {
+      setFormError(formatApiError(e, "No se pudo generar el código de extensión."));
+    } finally {
+      setUsageGeneratingId(null);
+    }
+  };
+
+  const handleResetUsageQuota = async (row: FieldDeviceRecord) => {
+    setFormError(null);
+    try {
+      await resetUsageQuota.mutateAsync(row.id);
+    } catch (e) {
+      setFormError(formatApiError(e, "No se pudo reiniciar el cupo de uso."));
+    }
+  };
+
   const confirmRevoke = async (row: FieldDeviceRecord) => {
     setFormError(null);
     try {
@@ -217,6 +243,7 @@ export function FieldDevicesPageContent() {
                 <TableHead>Usuario de campo</TableHead>
                 <TableHead>Rol</TableHead>
                 <TableHead>Estado</TableHead>
+                <TableHead>Modo</TableHead>
                 <TableHead>Código</TableHead>
                 <TableHead>Suspendido</TableHead>
                 <TableHead>Válido hasta</TableHead>
@@ -227,7 +254,7 @@ export function FieldDevicesPageContent() {
             <TableBody>
               {rows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
+                  <TableCell colSpan={9} className="py-8 text-center text-muted-foreground">
                     <Smartphone className="mx-auto mb-2 h-8 w-8 opacity-40" />
                     No hay teléfonos registrados.
                     {canWrite ? " Use «Asignar teléfono» para empezar." : ""}
@@ -239,6 +266,9 @@ export function FieldDevicesPageContent() {
                   const maxDevices = maxDevicesForRole(row.fieldUserRole);
                   const canGenerateCode =
                     canWrite && row.status === "pending" && !row.isBlocked;
+                  const isTrial = row.usagePolicy === "trial";
+                  const canUsageExtension =
+                    canWrite && isTrial && row.status === "enrolled" && !row.isBlocked;
                   return (
                     <TableRow key={row.id}>
                       <TableCell className="font-medium">
@@ -270,6 +300,17 @@ export function FieldDevicesPageContent() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-xs">
+                        <Badge
+                          className={
+                            isTrial
+                              ? "border-violet-200 bg-violet-50 text-violet-900"
+                              : "border-slate-200 bg-slate-50 text-slate-600"
+                          }
+                        >
+                          {usagePolicyLabel(row.usagePolicy)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-xs">
                         {row.status === "pending" ? (
                           row.hasActiveActivationCode ? (
                             <Badge className="border-sky-200 bg-sky-50 text-sky-900">
@@ -290,7 +331,7 @@ export function FieldDevicesPageContent() {
                         )}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {formatDateOnly(row.validUntil)}
+                        {formatDateTimePet(row.validUntil)}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {formatDate(row.lastSeenAt)}
@@ -307,6 +348,27 @@ export function FieldDevicesPageContent() {
                               <KeyRound className="h-4 w-4" />
                               {row.hasActiveActivationCode ? "Regenerar código" : "Generar código"}
                             </Button>
+                          ) : null}
+                          {canUsageExtension ? (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={usageGeneratingId === row.id || generateUsageCode.isPending}
+                                onClick={() => void handleGenerateUsageCode(row)}
+                              >
+                                <Timer className="h-4 w-4" />
+                                Código 2 h
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={resetUsageQuota.isPending}
+                                onClick={() => void handleResetUsageQuota(row)}
+                              >
+                                Reiniciar cupo
+                              </Button>
+                            </>
                           ) : null}
                           <Button variant="ghost" size="sm" onClick={() => openEdit(row)}>
                             <Pencil className="h-4 w-4" />
@@ -355,6 +417,17 @@ export function FieldDevicesPageContent() {
           setCodeDialogOpen(false);
           setCodeDialogDevice(null);
           setCodeDialogResult(null);
+        }}
+      />
+
+      <UsageExtensionCodeDialog
+        open={usageCodeDialogOpen}
+        device={usageCodeDialogDevice}
+        result={usageCodeDialogResult}
+        onClose={() => {
+          setUsageCodeDialogOpen(false);
+          setUsageCodeDialogDevice(null);
+          setUsageCodeDialogResult(null);
         }}
       />
 
