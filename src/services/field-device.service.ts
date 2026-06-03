@@ -145,15 +145,6 @@ export async function generateUsageExtensionCode(
   };
 }
 
-export async function resetDeviceUsageQuota(fieldDeviceId: string): Promise<FieldDeviceRecord> {
-  const { data, errors } = await adminDataClient.mutations.resetManagedDeviceUsageQuota({
-    fieldDeviceId,
-  });
-  if (errors?.length) throw new Error(errors.map((e) => e.message).join("; "));
-  if (!data) throw new Error("No se pudo reiniciar el cupo de uso");
-  return mapFieldDevice(data);
-}
-
 export async function revokeFieldDevice(id: string): Promise<FieldDeviceRecord> {
   const { data, errors } = await adminDataClient.mutations.revokeManagedFieldDevice({ id });
   if (errors?.length) throw new Error(errors.map((e) => e.message).join("; "));

@@ -6,7 +6,6 @@ import {
   generateFieldDeviceEnrollmentCode,
   generateUsageExtensionCode,
   listFieldDevices,
-  resetDeviceUsageQuota,
   revokeFieldDevice,
   updateFieldDevice,
 } from "@/services/field-device.service";
@@ -57,10 +56,5 @@ export function useFieldDeviceMutations() {
     onSuccess: invalidate,
   });
 
-  const resetUsageQuota = useMutation({
-    mutationFn: (fieldDeviceId: string) => resetDeviceUsageQuota(fieldDeviceId),
-    onSuccess: invalidate,
-  });
-
-  return { assign, update, revoke, generateCode, generateUsageCode, resetUsageQuota };
+  return { assign, update, revoke, generateCode, generateUsageCode };
 }

@@ -650,50 +650,6 @@ async function handleGenerateUsageExtensionCode(
   };
 }
 
-async function handleResetDeviceUsageQuota(event: FieldHandlerEvent): Promise<FieldDeviceRecord> {
-  const fieldDeviceId = String(event.arguments.fieldDeviceId ?? "").trim();
-  if (!fieldDeviceId) throwFieldDeviceError("DEVICE_NOT_FOUND", "Dispositivo no encontrado");
-
-  const device = await getFieldDeviceById(fieldDeviceId);
-  if (device.usagePolicy !== "trial") {
-    throwFieldDeviceError("DEVICE_NOT_TRIAL", "Solo dispositivos en modo prueba tienen cupo de uso");
-  }
-  if (device.status === "revoked") {
-    throwFieldDeviceError("DEVICE_ALREADY_REVOKED", "No se puede reiniciar un dispositivo revocado");
-  }
-
-  const fieldUser = await getFieldUserById(device.fieldUserId);
-  const nowIso = new Date().toISOString();
-
-  await doc.send(
-    new UpdateCommand({
-      TableName: fieldDeviceTableName(),
-      Key: { id: device.id },
-      UpdateExpression: "SET usageQuotaResetAt = :resetAt, updatedAt = :updatedAt",
-      ExpressionAttributeValues: {
-        ":resetAt": nowIso,
-        ":updatedAt": nowIso,
-      },
-    })
-  );
-
-  await writeAuditLogSafe({
-    entityType: "field_device",
-    entityId: device.id,
-    action: "resetManagedDeviceUsageQuota",
-    userId: fieldUser.id,
-    payload: { usageQuotaResetAt: nowIso },
-  });
-
-  const tokens = await scanEnrollmentTokens();
-  const activeToken = findActiveTokenForDevice(tokens, device.id, Date.now());
-  return toFieldDeviceRecord(
-    { ...device, usageQuotaResetAt: nowIso, updatedAt: nowIso },
-    fieldUser,
-    activeToken
-  );
-}
-
 async function handleRedeemUsageExtensionCode(
   event: FieldHandlerEvent
 ): Promise<UsageExtensionRedeemResult> {
@@ -1475,8 +1431,6 @@ export const handler: AppSyncResolverHandler<
         return await handleRevoke(fieldEvent);
       case "generateManagedUsageExtensionCode":
         return await handleGenerateUsageExtensionCode(fieldEvent);
-      case "resetManagedDeviceUsageQuota":
-        return await handleResetDeviceUsageQuota(fieldEvent);
       case "redeemUsageExtensionCode":
         return await handleRedeemUsageExtensionCode(fieldEvent);
       default:

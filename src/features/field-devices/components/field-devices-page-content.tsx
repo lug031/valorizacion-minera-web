@@ -56,8 +56,7 @@ export function FieldDevicesPageContent() {
   const canWrite = useCanWriteAdmin();
   const { data, isLoading, error } = useFieldDevices();
   const { data: fieldUsers } = useFieldUsers();
-  const { assign, update, revoke, generateCode, generateUsageCode, resetUsageQuota } =
-    useFieldDeviceMutations();
+  const { assign, update, revoke, generateCode, generateUsageCode } = useFieldDeviceMutations();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<"assign" | "edit">("assign");
   const [editing, setEditing] = useState<FieldDeviceRecord | null>(null);
@@ -167,15 +166,6 @@ export function FieldDevicesPageContent() {
       setFormError(formatApiError(e, "No se pudo generar el código de extensión."));
     } finally {
       setUsageGeneratingId(null);
-    }
-  };
-
-  const handleResetUsageQuota = async (row: FieldDeviceRecord) => {
-    setFormError(null);
-    try {
-      await resetUsageQuota.mutateAsync(row.id);
-    } catch (e) {
-      setFormError(formatApiError(e, "No se pudo reiniciar el cupo de uso."));
     }
   };
 
@@ -350,25 +340,15 @@ export function FieldDevicesPageContent() {
                             </Button>
                           ) : null}
                           {canUsageExtension ? (
-                            <>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                disabled={usageGeneratingId === row.id || generateUsageCode.isPending}
-                                onClick={() => void handleGenerateUsageCode(row)}
-                              >
-                                <Timer className="h-4 w-4" />
-                                Código 2 h
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                disabled={resetUsageQuota.isPending}
-                                onClick={() => void handleResetUsageQuota(row)}
-                              >
-                                Reiniciar cupo
-                              </Button>
-                            </>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={usageGeneratingId === row.id || generateUsageCode.isPending}
+                              onClick={() => void handleGenerateUsageCode(row)}
+                            >
+                              <Timer className="h-4 w-4" />
+                              Código 2 h
+                            </Button>
                           ) : null}
                           <Button variant="ghost" size="sm" onClick={() => openEdit(row)}>
                             <Pencil className="h-4 w-4" />

@@ -530,15 +530,6 @@ const schema = a.schema({
     .authorization((allow) => [allow.groups(["admin"])])
     .handler(a.handler.function(fieldDevices)),
 
-  resetManagedDeviceUsageQuota: a
-    .mutation()
-    .arguments({
-      fieldDeviceId: a.id().required(),
-    })
-    .returns(a.ref("FieldDeviceRecord"))
-    .authorization((allow) => [allow.groups(["admin"])])
-    .handler(a.handler.function(fieldDevices)),
-
   redeemUsageExtensionCode: a
     .mutation()
     .arguments({
