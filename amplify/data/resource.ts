@@ -387,7 +387,8 @@ const schema = a.schema({
     displayName: a.string().required(),
     role: fieldRoleEnum,
     isActive: a.boolean(),
-    mobilePasswordHash: a.string().required(),
+    /** No se expone al cliente; el hash se deriva localmente con la contraseña ingresada. */
+    mobilePasswordHash: a.string(),
   }),
 
   FieldDeviceEnrollmentResult: a.customType({

@@ -1019,7 +1019,6 @@ async function handleEnroll(event: FieldHandlerEvent): Promise<FieldDeviceEnroll
       displayName: fieldUser.displayName,
       role: fieldUser.role,
       isActive: fieldUser.isActive,
-      mobilePasswordHash: fieldUser.mobilePasswordHash,
     },
     serverTime: nowIso,
   };
