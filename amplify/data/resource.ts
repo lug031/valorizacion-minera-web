@@ -737,7 +737,7 @@ const schema = a.schema({
       nextToken: a.string(),
     })
     .returns(a.ref("AuditLogConnection"))
-    .authorization((allow) => [allow.groups(["admin", "supervisor"])])
+    .authorization((allow) => [allow.groups(["admin"])])
     .handler(a.handler.function(auditLogs)),
 });
 
