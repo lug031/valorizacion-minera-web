@@ -78,7 +78,7 @@ export interface FieldDeviceRecord {
 }
 
 export function usagePolicyLabel(policy: FieldDeviceRecord["usagePolicy"]): string {
-  if (policy === "trial") return "Prueba (2 h)";
+  if (policy === "trial") return "Demo";
   return "Estándar";
 }
 
