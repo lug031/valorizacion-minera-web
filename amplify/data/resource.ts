@@ -408,6 +408,8 @@ const schema = a.schema({
     usageQuotaResetAt: a.string(),
     revokedAt: a.string(),
     fieldUserIsActive: a.boolean(),
+    fieldUserRole: fieldRoleEnum,
+    fieldUserDisplayName: a.string(),
     lastSeenAt: a.string(),
     serverTime: a.string().required(),
   }),

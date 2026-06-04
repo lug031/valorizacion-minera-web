@@ -1079,6 +1079,8 @@ async function handleSyncStatus(event: FieldHandlerEvent): Promise<FieldDeviceSt
       usageQuotaResetAt: device.usageQuotaResetAt ?? null,
       revokedAt: device.revokedAt ?? nowIso,
       fieldUserIsActive: fieldUser.isActive,
+      fieldUserRole: fieldUser.role,
+      fieldUserDisplayName: fieldUser.displayName,
       lastSeenAt: device.lastSeenAt ?? null,
       serverTime: nowIso,
     };
@@ -1134,6 +1136,8 @@ async function handleSyncStatus(event: FieldHandlerEvent): Promise<FieldDeviceSt
     usageQuotaResetAt: device.usageQuotaResetAt ?? null,
     revokedAt: device.revokedAt ?? null,
     fieldUserIsActive: fieldUser.isActive,
+    fieldUserRole: fieldUser.role,
+    fieldUserDisplayName: fieldUser.displayName,
     lastSeenAt: nowIso,
     serverTime: nowIso,
   };
