@@ -71,6 +71,11 @@ export async function updateMaquilaRange(id: string, values: MaquilaRangeFormVal
   return mapRow(data);
 }
 
+export async function deleteMaquilaRange(id: string): Promise<void> {
+  const { errors } = await adminDataClient.models.MaquilaRange.delete({ id });
+  if (errors?.length) throw new Error(errors.map((e) => e.message).join("; "));
+}
+
 export async function setMaquilaRangeActive(id: string, isActive: boolean) {
   if (isActive) {
     const existing = await listMaquilaRanges();

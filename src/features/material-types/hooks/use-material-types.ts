@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createMaterialType,
+  deleteMaterialType,
   listMaterialTypes,
   setMaterialTypeActive,
   updateMaterialType,
@@ -40,5 +41,10 @@ export function useMaterialTypeMutations() {
     onSuccess: invalidate,
   });
 
-  return { create, update, toggleActive };
+  const remove = useMutation({
+    mutationFn: (id: string) => deleteMaterialType(id),
+    onSuccess: invalidate,
+  });
+
+  return { create, update, toggleActive, remove };
 }

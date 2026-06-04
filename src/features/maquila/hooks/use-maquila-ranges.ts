@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createMaquilaRange,
+  deleteMaquilaRange,
   listMaquilaRanges,
   setMaquilaRangeActive,
   updateMaquilaRange,
@@ -43,5 +44,10 @@ export function useMaquilaRangeMutations() {
     onSuccess: invalidate,
   });
 
-  return { create, update, toggleActive };
+  const remove = useMutation({
+    mutationFn: (id: string) => deleteMaquilaRange(id),
+    onSuccess: invalidate,
+  });
+
+  return { create, update, toggleActive, remove };
 }

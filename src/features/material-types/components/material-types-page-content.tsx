@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Plus } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -21,11 +22,12 @@ import type { MaterialTypeFormValues, MaterialTypeRecord } from "@/features/mate
 export function MaterialTypesPageContent() {
   const canWrite = useCanWriteAdmin();
   const { data, isLoading, error } = useMaterialTypes();
-  const { create, update, toggleActive } = useMaterialTypeMutations();
+  const { create, update, toggleActive, remove } = useMaterialTypeMutations();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<MaterialTypeRecord | null>(null);
   const [readOnly, setReadOnly] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<MaterialTypeRecord | null>(null);
 
   const openCreate = () => {
     setEditing(null);
@@ -122,12 +124,23 @@ export function MaterialTypesPageContent() {
                           {canWrite ? "Editar" : "Ver"}
                         </Button>
                         {canWrite ? (
-                          <Switch
-                            checked={Boolean(row.isActive)}
-                            onCheckedChange={(v) =>
-                              void toggleActive.mutateAsync({ id: row.id, isActive: v })
-                            }
-                          />
+                          <>
+                            <Switch
+                              checked={Boolean(row.isActive)}
+                              onCheckedChange={(v) =>
+                                void toggleActive.mutateAsync({ id: row.id, isActive: v })
+                              }
+                            />
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => setDeleteTarget(row)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Eliminar
+                            </Button>
+                          </>
                         ) : null}
                       </div>
                     </TableCell>
@@ -146,6 +159,20 @@ export function MaterialTypesPageContent() {
         saving={create.isPending || update.isPending}
         onClose={() => setDialogOpen(false)}
         onSubmit={(values) => void handleSubmit(values)}
+      />
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Eliminar tipo MAT"
+        description={`¿Eliminar permanentemente "${deleteTarget?.code}" (${deleteTarget?.label})? Los teléfonos dejarán de mostrarlo tras la próxima sincronización.`}
+        confirmLabel="Eliminar"
+        destructive
+        loading={remove.isPending}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          if (!deleteTarget) return;
+          void remove.mutateAsync(deleteTarget.id).then(() => setDeleteTarget(null));
+        }}
       />
     </div>
   );

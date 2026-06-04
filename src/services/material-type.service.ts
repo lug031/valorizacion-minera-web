@@ -93,3 +93,8 @@ export async function setMaterialTypeActive(id: string, isActive: boolean) {
   if (!data) throw new Error("No se pudo cambiar el estado");
   return mapRow(data);
 }
+
+export async function deleteMaterialType(id: string): Promise<void> {
+  const { errors } = await adminDataClient.models.MaterialType.delete({ id });
+  if (errors?.length) throw new Error(errors.map((e) => e.message).join("; "));
+}

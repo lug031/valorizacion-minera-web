@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Plus } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -22,11 +23,12 @@ import { formatApiError } from "@/lib/errors/format-api-error";
 export function MaquilaRangesPageContent() {
   const canWrite = useCanWriteAdmin();
   const { data, isLoading, error } = useMaquilaRanges();
-  const { create, update, toggleActive } = useMaquilaRangeMutations();
+  const { create, update, toggleActive, remove } = useMaquilaRangeMutations();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<MaquilaRangeRecord | null>(null);
   const [readOnly, setReadOnly] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<MaquilaRangeRecord | null>(null);
 
   const openCreate = () => {
     setEditing(null);
@@ -125,12 +127,23 @@ export function MaquilaRangesPageContent() {
                           {canWrite ? "Editar" : "Ver"}
                         </Button>
                         {canWrite ? (
-                          <Switch
-                            checked={Boolean(row.isActive)}
-                            onCheckedChange={(v) =>
-                              void toggleActive.mutateAsync({ id: row.id, isActive: v })
-                            }
-                          />
+                          <>
+                            <Switch
+                              checked={Boolean(row.isActive)}
+                              onCheckedChange={(v) =>
+                                void toggleActive.mutateAsync({ id: row.id, isActive: v })
+                              }
+                            />
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => setDeleteTarget(row)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Eliminar
+                            </Button>
+                          </>
                         ) : null}
                       </div>
                     </TableCell>
@@ -149,6 +162,20 @@ export function MaquilaRangesPageContent() {
         saving={create.isPending || update.isPending}
         onClose={() => setDialogOpen(false)}
         onSubmit={(values) => void handleSubmit(values)}
+      />
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Eliminar rango de maquila"
+        description={`¿Eliminar el rango ${deleteTarget?.minLeyOzTc} – ${deleteTarget?.maxLeyOzTc} (maquila ${deleteTarget?.maquila})? La app móvil actualizará sugerencias tras sincronizar.`}
+        confirmLabel="Eliminar"
+        destructive
+        loading={remove.isPending}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          if (!deleteTarget) return;
+          void remove.mutateAsync(deleteTarget.id).then(() => setDeleteTarget(null));
+        }}
       />
     </div>
   );
